@@ -620,22 +620,49 @@ async function startScanner() {
     return;
   }
   try {
+    // Request back camera; omit resolution constraints — let browser decide.
+    // Strict width/height ideals can cause play() to reject on some Android devices.
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } }
+      video: { facingMode: { ideal: 'environment' } }
     });
+
     const video = document.getElementById('video');
-    video.srcObject = stream;
-    await video.play();
-    scanning = true;
+
+    // FIX: make the scanner wrap visible BEFORE calling play().
+    // On Android Chrome, play() on a display:none element throws NotAllowedError
+    // even when camera permission is granted — element must be in the visible DOM.
     document.getElementById('scannerWrap').classList.add('active');
     document.getElementById('idleState').style.display = 'none';
     document.getElementById('scanBtn').textContent = '◼ Stop Scan';
-    scanLoop();
+
+    video.srcObject = stream;
+
+    // play() returns a promise; catch separately so we can show the stream
+    // even if autoplay policy causes a hiccup.
+    try {
+      await video.play();
+    } catch (playErr) {
+      // Autoplay was blocked — user tap will resume, stream is still attached
+      console.warn('video.play() rejected:', playErr.message);
+    }
+
+    scanning = true;
+    scheduleNextScan();
+
   } catch (e) {
-    if (e.name === 'NotAllowedError') {
-      showToast('Camera permission denied in browser', 'error');
+    // Reset UI if we failed before making the element visible
+    document.getElementById('scannerWrap').classList.remove('active');
+    document.getElementById('idleState').style.display = 'flex';
+    document.getElementById('scanBtn').textContent = '⬡ Scan QR';
+
+    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      showToast('Camera permission denied', 'error');
+    } else if (e.name === 'NotFoundError') {
+      showToast('No camera found on this device', 'error');
+    } else if (e.name === 'NotReadableError') {
+      showToast('Camera in use by another app', 'error');
     } else {
-      showToast('Could not start camera', 'error');
+      showToast('Camera error: ' + e.name, 'error');
     }
   }
 }
@@ -644,11 +671,17 @@ function stopScanner() {
   scanning = false;
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
-  cancelAnimationFrame(animFrame);
+  clearTimeout(animFrame);
   document.getElementById('scannerWrap').classList.remove('active');
   document.getElementById('idleState').style.display = 'flex';
   document.getElementById('scanBtn').textContent = '⬡ Scan QR';
   document.getElementById('scanStatus').textContent = 'Scanning…';
+}
+
+function scheduleNextScan() {
+  // Capture every 100ms (10fps) — enough for reliable QR detection,
+  // avoids hammering the CPU at 60fps.
+  animFrame = setTimeout(scanLoop, 100);
 }
 
 function scanLoop() {
@@ -657,8 +690,9 @@ function scanLoop() {
   const video  = document.getElementById('video');
   const canvas = document.getElementById('canvas');
 
-  if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-    animFrame = requestAnimationFrame(scanLoop);
+  // Wait until the video has actual pixel data
+  if (video.readyState !== video.HAVE_ENOUGH_DATA || video.videoWidth === 0) {
+    scheduleNextScan();
     return;
   }
 
@@ -675,24 +709,50 @@ function scanLoop() {
 
   if (code && code.data) {
     const now = Date.now();
+    // Ignore the same code for 3s to avoid double-adding while still pointing at it
     if (code.data !== lastScanned || now - lastScanTime > 3000) {
       lastScanned  = code.data;
       lastScanTime = now;
-      flashFeedback();
       if (addStop(code.data, 'QR')) {
-        document.getElementById('scanStatus').textContent = 'Got it! Keep scanning…';
-        setTimeout(() => { if (scanning) document.getElementById('scanStatus').textContent = 'Scanning…'; }, 1800);
+        showScanSuccess(); // freeze + green feedback, then resume
+        return;           // don't schedule next scan — showScanSuccess handles resuming
       }
     }
   }
 
-  animFrame = requestAnimationFrame(scanLoop);
+  scheduleNextScan();
 }
 
-function flashFeedback() {
-  const f = document.getElementById('flash');
-  f.classList.add('show');
-  setTimeout(() => f.classList.remove('show'), 150);
+function showScanSuccess() {
+  // 1. Freeze: stop scheduling new frames (loop already paused by returning above)
+  // 2. White flash overlay
+  const flash  = document.getElementById('flash');
+  const status = document.getElementById('scanStatus');
+
+  flash.style.transition = 'opacity 0.15s';
+  flash.style.background = '#ffffff';
+  flash.style.opacity    = '0.55';
+
+  // 3. Green "Added ✓" text in the centre of the scan window
+  status.style.color     = '#47ff9a';
+  status.style.fontSize  = '15px';
+  status.style.textShadow = '0 0 14px #47ff9a';
+  status.textContent     = 'Added ✓';
+
+  // 4. After 1.5s: fade out overlay, reset text, resume scanning
+  setTimeout(() => {
+    flash.style.opacity = '0';
+    status.style.color     = 'var(--accent)';
+    status.style.fontSize  = '';
+    status.style.textShadow = '0 0 12px var(--accent)';
+    status.textContent  = 'Scanning…';
+
+    // Small extra delay so the fade finishes before we start reading frames again
+    setTimeout(() => {
+      flash.style.background = 'var(--accent)';
+      if (scanning) scheduleNextScan();
+    }, 200);
+  }, 1500);
 }
 
 /* ══════════════════════════════════════
