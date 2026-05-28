@@ -663,14 +663,22 @@ function scanLoop() {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(video, 0, 0);
 
-    // Mild contrast boost to help with low-light / washed-out codes
-    ctx.filter = 'contrast(1.4) brightness(1.05)';
-    ctx.drawImage(video, 0, 0);
-    ctx.filter = 'none';
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // Manual contrast stretch — works on all mobile browsers (ctx.filter is unreliable)
+    // Convert to greyscale + stretch histogram so dark/light QR codes both decode cleanly
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const grey = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+      // Simple threshold-free contrast: push towards extremes
+      const v = grey < 128 ? Math.max(0, grey * 0.75) : Math.min(255, grey * 1.2);
+      d[i] = d[i+1] = d[i+2] = v;
+    }
+    ctx.putImageData(img, 0, 0);
+    const enhanced = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
     // attemptBoth handles white-on-black QR codes too
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+    const code = jsQR(enhanced.data, enhanced.width, enhanced.height, { inversionAttempts: 'attemptBoth' });
 
     if (code && code.data) {
       const now = Date.now();
