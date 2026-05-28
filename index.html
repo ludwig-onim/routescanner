@@ -653,19 +653,29 @@ function stopScanner() {
 
 function scanLoop() {
   if (!scanning) return;
-  const video = document.getElementById('video');
+  const video  = document.getElementById('video');
   const canvas = document.getElementById('canvas');
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    const size = Math.min(video.videoWidth, video.videoHeight);
-    canvas.width = size; canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, (video.videoWidth-size)/2, (video.videoHeight-size)/2, size, size, 0, 0, size, size);
-    const img  = ctx.getImageData(0, 0, size, size);
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-    if (code) {
+
+  if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+    // Full native resolution — more pixels = more reliable decode
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0);
+
+    // Mild contrast boost to help with low-light / washed-out codes
+    ctx.filter = 'contrast(1.4) brightness(1.05)';
+    ctx.drawImage(video, 0, 0);
+    ctx.filter = 'none';
+
+    const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // attemptBoth handles white-on-black QR codes too
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+
+    if (code && code.data) {
       const now = Date.now();
       if (code.data !== lastScanned || now - lastScanTime > 3000) {
-        lastScanned = code.data;
+        lastScanned  = code.data;
         lastScanTime = now;
         flashFeedback();
         if (addStop(code.data, 'QR')) {
@@ -675,7 +685,8 @@ function scanLoop() {
       }
     }
   }
-  animFrame = requestAnimationFrame(scanLoop);
+  // ~15 fps — enough for scanning, saves battery
+  setTimeout(() => { animFrame = requestAnimationFrame(scanLoop); }, 66);
 }
 
 function flashFeedback() {
@@ -706,6 +717,11 @@ document.getElementById('addrInput').addEventListener('keydown', e => {
 
 /* ══════════════════════════════════════
    ROUTE OPTIMIZATION
+   Strategy:
+   1. Get user's GPS location (origin + return point)
+   2. Geocode all stops via Nominatim
+   3. Build a full driving-distance matrix via OSRM (free, no key)
+   4. Greedy nearest-neighbour from origin, return to origin at end
 ══════════════════════════════════════ */
 function extractAddress(text) {
   try {
@@ -717,140 +733,126 @@ function extractAddress(text) {
   return text;
 }
 
+function getUserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('Geolocation not supported')); return; }
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      e => reject(e),
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  });
+}
+
 async function geocode(address) {
   const q = extractAddress(address);
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
-  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+  // Add "Berlin" as region hint so short street names resolve correctly
+  const query = /berlin/i.test(q) ? q : q + ', Berlin';
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+  const res  = await fetch(url, { headers: { 'Accept-Language': 'de,en' } });
   const data = await res.json();
-  if (!data.length) return null;
+  if (!data.length) {
+    // Retry without the Berlin hint
+    const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+    const res2  = await fetch(url2, { headers: { 'Accept-Language': 'de,en' } });
+    const data2 = await res2.json();
+    if (!data2.length) return null;
+    return { lat: parseFloat(data2[0].lat), lon: parseFloat(data2[0].lon) };
+  }
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
 
-function haverDist(a, b) {
-  const R = 6371, toR = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * toR;
-  const dLon = (b.lon - a.lon) * toR;
-  const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+// OSRM Table API — returns a full driving-duration matrix in one request (free, no key)
+// coords: array of {lat, lon}  — returns duration matrix [n x n] in seconds
+async function getOSRMDurationMatrix(coords) {
+  const coordStr = coords.map(c => `${c.lon},${c.lat}`).join(';');
+  const url = `https://router.project-osrm.org/table/v1/driving/${coordStr}?annotations=duration`;
+  const res  = await fetch(url);
+  const data = await res.json();
+  if (data.code !== 'Ok') throw new Error('OSRM error: ' + data.code);
+  return data.durations; // [n][n] matrix, durations in seconds
 }
 
-// Build a distance matrix (only between non-null coords)
-function buildDistMatrix(coords) {
-  const n = coords.length;
-  const d = Array.from({length: n}, () => new Array(n).fill(0));
-  for (let i = 0; i < n; i++)
-    for (let j = i + 1; j < n; j++) {
-      const dist = (coords[i] && coords[j]) ? haverDist(coords[i], coords[j]) : 1e9;
-      d[i][j] = d[j][i] = dist;
-    }
-  return d;
-}
+// Greedy nearest-neighbour from a fixed origin index, not returning to origin in ordering
+// (origin is prepended, end stop is last delivery — origin appended by caller for display)
+function greedyFromOrigin(originIdx, matrix) {
+  const n = matrix.length;
+  const deliveries = [];
+  for (let i = 0; i < n; i++) if (i !== originIdx) deliveries.push(i);
 
-function routeLength(order, dist) {
-  let total = 0;
-  for (let i = 0; i < order.length - 1; i++) total += dist[order[i]][order[i+1]];
-  return total;
-}
+  const visited = new Set();
+  const order   = [];
+  let current   = originIdx;
 
-// True optimum for ≤10 stops — brute-force all permutations (fixing index 0)
-function bruteForceTSP(dist) {
-  const n = dist.length;
-  const indices = Array.from({length: n - 1}, (_, i) => i + 1); // permute everything except first stop
-  let bestOrder = [0, ...indices];
-  let bestLen   = routeLength(bestOrder, dist);
-
-  function permute(arr, l) {
-    if (l === arr.length - 1) {
-      const candidate = [0, ...arr];
-      const len = routeLength(candidate, dist);
-      if (len < bestLen) { bestLen = len; bestOrder = [...candidate]; }
-      return;
-    }
-    for (let i = l; i < arr.length; i++) {
-      [arr[l], arr[i]] = [arr[i], arr[l]];
-      permute(arr, l + 1);
-      [arr[l], arr[i]] = [arr[i], arr[l]];
-    }
-  }
-  permute(indices, 0);
-  return bestOrder;
-}
-
-// Nearest-neighbor seed
-function nearestNeighborSeed(dist) {
-  const n = dist.length;
-  const visited = new Array(n).fill(false);
-  const order = [0]; visited[0] = true;
-  for (let step = 1; step < n; step++) {
-    const last = order[order.length - 1];
-    let best = -1, bestD = Infinity;
-    for (let j = 0; j < n; j++) {
-      if (!visited[j] && dist[last][j] < bestD) { bestD = dist[last][j]; best = j; }
-    }
-    if (best === -1) for (let j = 0; j < n; j++) if (!visited[j]) { best = j; break; }
-    visited[best] = true;
-    order.push(best);
-  }
-  return order;
-}
-
-// 2-opt improvement: repeatedly swap pairs until no improvement
-function twoOpt(order, dist) {
-  let improved = true;
-  while (improved) {
-    improved = false;
-    for (let i = 1; i < order.length - 1; i++) {
-      for (let j = i + 1; j < order.length; j++) {
-        // Cost of current edges: (i-1→i) + (j→j+1)  vs  (i-1→j) + (i→j+1)
-        const a = order[i - 1], b = order[i];
-        const c = order[j],     d = order[(j + 1) % order.length];
-        const before = dist[a][b] + dist[c][d];
-        const after  = dist[a][c] + dist[b][d];
-        if (after < before - 1e-10) {
-          // Reverse the segment between i and j
-          order.splice(i, j - i + 1, ...order.slice(i, j + 1).reverse());
-          improved = true;
-        }
+  while (order.length < deliveries.length) {
+    let best = -1, bestDur = Infinity;
+    for (const j of deliveries) {
+      if (!visited.has(j) && matrix[current][j] < bestDur) {
+        bestDur = matrix[current][j]; best = j;
       }
     }
+    visited.add(best);
+    order.push(best);
+    current = best;
   }
-  return order;
-}
-
-function optimizeTSP(coords) {
-  const dist = buildDistMatrix(coords);
-  const n = coords.length;
-  if (n <= 10) return bruteForceTSP(dist);
-  // For larger sets: nearest-neighbor + 2-opt
-  const seed = nearestNeighborSeed(dist);
-  return twoOpt(seed, dist);
+  return order; // indices into coords array, excludes origin
 }
 
 async function optimizeRoute() {
-  if (stops.length < 3) return;
+  if (stops.length < 2) return;
   if (isFileOrigin) {
     showToast('Optimization blocked on file:// — host it first', 'error');
     return;
   }
   const btn = document.getElementById('optimizeBtn');
-  btn.textContent = '⟳ Geocoding…';
+  btn.textContent = '⟳ Locating you…';
   btn.disabled = true;
 
   try {
-    const coords = [];
-    for (let i = 0; i < stops.length; i++) {
-      btn.textContent = `⟳ ${i + 1}/${stops.length} addresses…`;
-      const c = await geocode(stops[i].text);
-      coords.push(c);
-      await new Promise(r => setTimeout(r, 300));
+    // Step 1: get user location
+    let origin;
+    try {
+      origin = await getUserLocation();
+    } catch {
+      showToast('Location access denied — needed for optimization', 'error');
+      btn.textContent = '⟳ Optimize Order'; btn.disabled = false;
+      return;
     }
-    const failed = coords.filter(c => !c).length;
-    const order = optimizeTSP(coords);
-    stops = order.map(i => stops[i]);
+
+    // Step 2: geocode all stops
+    btn.textContent = '⟳ Geocoding stops…';
+    const stopCoords = [];
+    const failed = [];
+    for (let i = 0; i < stops.length; i++) {
+      btn.textContent = `⟳ Geocoding ${i + 1}/${stops.length}…`;
+      const c = await geocode(stops[i].text);
+      stopCoords.push(c);
+      if (!c) failed.push(stops[i].text);
+      await new Promise(r => setTimeout(r, 300)); // Nominatim rate limit
+    }
+
+    // Replace failed geocodes with origin coords (they'll cluster near start)
+    const allCoords = [origin, ...stopCoords.map(c => c || origin)];
+    // allCoords[0] = origin, allCoords[1..n] = stops
+
+    // Step 3: driving-distance matrix via OSRM
+    btn.textContent = '⟳ Calculating route…';
+    const matrix = await getOSRMDurationMatrix(allCoords);
+
+    // Step 4: greedy nearest-neighbour from origin (index 0)
+    const order = greedyFromOrigin(0, matrix);
+    // order is 1-based indices into allCoords → convert to stop indices (subtract 1)
+    stops = order.map(i => stops[i - 1]);
     updateUI();
-    showToast(failed ? `Optimized (${failed} not found)` : 'Route optimized ✓', failed ? 'info' : 'success');
-  } catch {
-    showToast('Geocoding failed — check connection', 'error');
+
+    if (failed.length) {
+      showToast(`Optimized — ${failed.length} address(es) not found`, 'info');
+    } else {
+      showToast('Route optimized ✓ (returns to origin)', 'success');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Optimization failed — check connection', 'error');
   }
 
   btn.textContent = '⟳ Optimize Order';
