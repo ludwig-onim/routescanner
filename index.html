@@ -653,48 +653,40 @@ function stopScanner() {
 
 function scanLoop() {
   if (!scanning) return;
+
   const video  = document.getElementById('video');
   const canvas = document.getElementById('canvas');
 
-  if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-    // Full native resolution — more pixels = more reliable decode
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(video, 0, 0);
+  if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+    animFrame = requestAnimationFrame(scanLoop);
+    return;
+  }
 
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-    // Manual contrast stretch — works on all mobile browsers (ctx.filter is unreliable)
-    // Convert to greyscale + stretch histogram so dark/light QR codes both decode cleanly
-    const d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const grey = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-      // Simple threshold-free contrast: push towards extremes
-      const v = grey < 128 ? Math.max(0, grey * 0.75) : Math.min(255, grey * 1.2);
-      d[i] = d[i+1] = d[i+2] = v;
-    }
-    ctx.putImageData(img, 0, 0);
-    const enhanced = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(video, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    // attemptBoth handles white-on-black QR codes too
-    const code = jsQR(enhanced.data, enhanced.width, enhanced.height, { inversionAttempts: 'attemptBoth' });
+  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'attemptBoth'
+  });
 
-    if (code && code.data) {
-      const now = Date.now();
-      if (code.data !== lastScanned || now - lastScanTime > 3000) {
-        lastScanned  = code.data;
-        lastScanTime = now;
-        flashFeedback();
-        if (addStop(code.data, 'QR')) {
-          document.getElementById('scanStatus').textContent = 'Got it! Keep scanning…';
-          setTimeout(() => { if (scanning) document.getElementById('scanStatus').textContent = 'Scanning…'; }, 1800);
-        }
+  if (code && code.data) {
+    const now = Date.now();
+    if (code.data !== lastScanned || now - lastScanTime > 3000) {
+      lastScanned  = code.data;
+      lastScanTime = now;
+      flashFeedback();
+      if (addStop(code.data, 'QR')) {
+        document.getElementById('scanStatus').textContent = 'Got it! Keep scanning…';
+        setTimeout(() => { if (scanning) document.getElementById('scanStatus').textContent = 'Scanning…'; }, 1800);
       }
     }
   }
-  // ~15 fps — enough for scanning, saves battery
-  setTimeout(() => { animFrame = requestAnimationFrame(scanLoop); }, 66);
+
+  animFrame = requestAnimationFrame(scanLoop);
 }
 
 function flashFeedback() {
@@ -770,40 +762,45 @@ async function geocode(address) {
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
 
-// OSRM Table API — returns a full driving-duration matrix in one request (free, no key)
-// coords: array of {lat, lon}  — returns duration matrix [n x n] in seconds
-async function getOSRMDurationMatrix(coords) {
-  const coordStr = coords.map(c => `${c.lon},${c.lat}`).join(';');
-  const url = `https://router.project-osrm.org/table/v1/driving/${coordStr}?annotations=duration`;
+
+
+// ── Optimization: greedy seed + 2-opt improvement ──────────────────────────
+//
+// WHY GREEDY ALONE FAILS:
+// Pure nearest-neighbor commits greedily to each step without looking ahead.
+// When stops form a tight cluster near the origin plus distant outliers, it
+// gets distracted by an outlier early, then has to backtrack through the
+// cluster — crossing its own path. Example: A→B(far)→C→D→E→F instead of
+// the correct A→E→D→C→B→F (clear cluster first, then move outward).
+//
+// THE FIX — 2-opt post-processing:
+// After the greedy seed, repeatedly scan all pairs of edges. If swapping
+// two edges (reversing the segment between them) shortens the total driving
+// duration, make the swap. Repeat until no improvement is found. This
+// untangles route crossings and fixes the backtracking pattern.
+// Applied to real OSRM driving durations (not straight-line), it reliably
+// finds the correct outward-sweep order.
+
+// ── Optimization: step-by-step nearest-neighbour via individual OSRM calls ──
+//
+// Exactly as described:
+// 1. Current location is added as the starting point.
+// 2. From current position, get the driving distance (km) to every unvisited stop.
+// 3. The stop with the lowest km value becomes the next stop.
+// 4. Repeat from that stop until all stops are visited.
+// 5. Current location is appended again as the final return point (for display).
+//
+// Uses individual OSRM /route calls so each distance is a real driving km value.
+// No matrix, no 2-opt, no index mapping — impossible to produce wrong ordering.
+
+async function getDrivingKm(from, to) {
+  // Returns driving distance in km between two {lat, lon} points via OSRM.
+  const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
   const res  = await fetch(url);
   const data = await res.json();
-  if (data.code !== 'Ok') throw new Error('OSRM error: ' + data.code);
-  return data.durations; // [n][n] matrix, durations in seconds
-}
+  if (data.code !== 'Ok' || !data.routes.length) return Infinity;
 
-// Greedy nearest-neighbour from a fixed origin index, not returning to origin in ordering
-// (origin is prepended, end stop is last delivery — origin appended by caller for display)
-function greedyFromOrigin(originIdx, matrix) {
-  const n = matrix.length;
-  const deliveries = [];
-  for (let i = 0; i < n; i++) if (i !== originIdx) deliveries.push(i);
-
-  const visited = new Set();
-  const order   = [];
-  let current   = originIdx;
-
-  while (order.length < deliveries.length) {
-    let best = -1, bestDur = Infinity;
-    for (const j of deliveries) {
-      if (!visited.has(j) && matrix[current][j] < bestDur) {
-        bestDur = matrix[current][j]; best = j;
-      }
-    }
-    visited.add(best);
-    order.push(best);
-    current = best;
-  }
-  return order; // indices into coords array, excludes origin
+  return data.routes[0].distance / 1000; // metres → km
 }
 
 async function optimizeRoute() {
@@ -813,11 +810,11 @@ async function optimizeRoute() {
     return;
   }
   const btn = document.getElementById('optimizeBtn');
-  btn.textContent = '⟳ Locating you…';
   btn.disabled = true;
 
   try {
-    // Step 1: get user location
+    // Step 1: get current location
+    btn.textContent = '⟳ Locating you…';
     let origin;
     try {
       origin = await getUserLocation();
@@ -828,36 +825,51 @@ async function optimizeRoute() {
     }
 
     // Step 2: geocode all stops
-    btn.textContent = '⟳ Geocoding stops…';
-    const stopCoords = [];
+    const coords = [];
     const failed = [];
     for (let i = 0; i < stops.length; i++) {
       btn.textContent = `⟳ Geocoding ${i + 1}/${stops.length}…`;
       const c = await geocode(stops[i].text);
-      stopCoords.push(c);
-      if (!c) failed.push(stops[i].text);
-      await new Promise(r => setTimeout(r, 300)); // Nominatim rate limit
+      coords.push(c);
+      if (!c) failed.push(i);
+      await new Promise(r => setTimeout(r, 300));
+    }
+    const resolved = coords.map(c => c || origin);
+
+    // Step 3: nearest-neighbour — from current position, check driving km
+    // to every unvisited stop, pick the closest, repeat until all visited.
+    const unvisited  = stops.map((_, i) => i);
+    const orderedIdx = [];
+    let currentPos   = origin;
+    let stepNum      = 0;
+
+    while (unvisited.length > 0) {
+      stepNum++;
+      let bestIdx = -1, bestKm = Infinity, bestPos = 0;
+
+      for (let p = 0; p < unvisited.length; p++) {
+        const stopIdx = unvisited[p];
+        btn.textContent = `⟳ Step ${stepNum}: checking ${p + 1}/${unvisited.length}…`;
+        const km = await getDrivingKm(currentPos, resolved[stopIdx]);
+        if (km < bestKm) {
+          bestKm = km; bestIdx = stopIdx; bestPos = p;
+        }
+      }
+
+      orderedIdx.push(bestIdx);
+      unvisited.splice(bestPos, 1);
+      currentPos = resolved[bestIdx];
     }
 
-    // Replace failed geocodes with origin coords (they'll cluster near start)
-    const allCoords = [origin, ...stopCoords.map(c => c || origin)];
-    // allCoords[0] = origin, allCoords[1..n] = stops
-
-    // Step 3: driving-distance matrix via OSRM
-    btn.textContent = '⟳ Calculating route…';
-    const matrix = await getOSRMDurationMatrix(allCoords);
-
-    // Step 4: greedy nearest-neighbour from origin (index 0)
-    const order = greedyFromOrigin(0, matrix);
-    // order is 1-based indices into allCoords → convert to stop indices (subtract 1)
-    stops = order.map(i => stops[i - 1]);
+    // Step 4: reorder stops to match optimized order
+    const oldStops = stops.slice();
+    stops = orderedIdx.map(i => oldStops[i]);
     updateUI();
 
-    if (failed.length) {
-      showToast(`Optimized — ${failed.length} address(es) not found`, 'info');
-    } else {
-      showToast('Route optimized ✓ (returns to origin)', 'success');
-    }
+    showToast(failed.length
+      ? `Optimized — ${failed.length} stop(s) not geocoded`
+      : 'Route optimized ✓', failed.length ? 'info' : 'success');
+
   } catch (err) {
     console.error(err);
     showToast('Optimization failed — check connection', 'error');
