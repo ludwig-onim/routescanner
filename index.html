@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RouteScan">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
@@ -357,6 +357,30 @@
   .toast.success { border-color:var(--success); color:var(--success); }
   .toast.error   { border-color:var(--danger);  color:var(--danger); }
   .toast.info    { border-color:var(--accent2); color:var(--accent2); }
+
+  /* ── html5-qrcode internal UI overrides ── */
+  /* Hide the library's own header, select box, torch button, file input */
+  #qr-reader {
+    border: none !important;
+    width: 100% !important;
+  }
+  #qr-reader__scan_region { background: transparent !important; }
+  #qr-reader__scan_region video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: var(--radius) !important;
+  }
+  #qr-reader__dashboard { display: none !important; }
+  #qr-reader__status_span { display: none !important; }
+
+  /* Keep our custom overlay on top of the library's video */
+  .scan-overlay {
+    pointer-events: none;
+    z-index: 10;
+  }
+  .scan-status { z-index: 11; }
+  .flash { z-index: 12; }
 </style>
 </head>
 <body>
@@ -376,12 +400,10 @@
   <p><strong>Quick fix:</strong> Host the file over HTTPS. The easiest option is to drag this file to <a href="https://app.netlify.com/drop" target="_blank">netlify.com/drop</a> — you'll get a live URL in under a minute. Manual address entry and navigation work fine right now.</p>
 </div>
 
-<!-- Scanner -->
+<!-- Scanner — html5-qrcode renders the video feed inside #scannerWrap -->
 <div class="scanner-wrap" id="scannerWrap">
-  <video id="video" playsinline autoplay muted></video>
-  <canvas id="canvas"></canvas>
-  <div class="flash" id="flash"></div>
-  <div class="scan-overlay">
+  <div id="qr-reader"></div>
+  <div class="scan-overlay" id="scanOverlay">
     <div class="scan-frame">
       <div class="corner-br"></div>
       <div class="corner-bl"></div>
@@ -389,6 +411,7 @@
     </div>
   </div>
   <div class="scan-status" id="scanStatus">Scanning…</div>
+  <div class="flash" id="flash"></div>
 </div>
 
 <!-- Idle -->
@@ -468,8 +491,6 @@ if (isFileOrigin) {
 ══════════════════════════════════════ */
 let stops = [];
 let scanning = false;
-let stream = null;
-let animFrame = null;
 let lastScanned = '';
 let lastScanTime = 0;
 let navOpen = false;
@@ -604,8 +625,13 @@ function onDragEnd() {
 }
 
 /* ══════════════════════════════════════
-   SCANNER
+   SCANNER  (html5-qrcode library)
+   Replaces manual jsQR + getUserMedia pipeline.
+   html5-qrcode handles camera selection, Android
+   permission quirks, and frame decoding internally.
 ══════════════════════════════════════ */
+let html5QrScanner = null;
+
 async function toggleScanner() {
   scanning ? stopScanner() : await startScanner();
 }
@@ -615,143 +641,94 @@ async function startScanner() {
     showToast('Camera blocked on file:// — host it first', 'error');
     return;
   }
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showToast('Camera API not available', 'error');
-    return;
-  }
+
+  // Show the scanner container first so the library can measure it
+  document.getElementById('scannerWrap').classList.add('active');
+  document.getElementById('idleState').style.display = 'none';
+  document.getElementById('scanBtn').textContent = '◼ Stop Scan';
+
   try {
-    // Request back camera; omit resolution constraints — let browser decide.
-    // Strict width/height ideals can cause play() to reject on some Android devices.
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } }
-    });
+    html5QrScanner = new Html5Qrcode('qr-reader');
 
-    const video = document.getElementById('video');
-
-    // FIX: make the scanner wrap visible BEFORE calling play().
-    // On Android Chrome, play() on a display:none element throws NotAllowedError
-    // even when camera permission is granted — element must be in the visible DOM.
-    document.getElementById('scannerWrap').classList.add('active');
-    document.getElementById('idleState').style.display = 'none';
-    document.getElementById('scanBtn').textContent = '◼ Stop Scan';
-
-    video.srcObject = stream;
-
-    // play() returns a promise; catch separately so we can show the stream
-    // even if autoplay policy causes a hiccup.
-    try {
-      await video.play();
-    } catch (playErr) {
-      // Autoplay was blocked — user tap will resume, stream is still attached
-      console.warn('video.play() rejected:', playErr.message);
-    }
+    await html5QrScanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,        // check 10 frames per second
+        qrbox: { width: 220, height: 220 }, // focus region
+        aspectRatio: 1.0
+      },
+      (decodedText) => {
+        // Called once per successful decode
+        const now = Date.now();
+        if (decodedText !== lastScanned || now - lastScanTime > 3000) {
+          lastScanned  = decodedText;
+          lastScanTime = now;
+          if (addStop(decodedText, 'QR')) {
+            showScanSuccess();
+          }
+        }
+      },
+      () => { /* scan failure per frame — ignore */ }
+    );
 
     scanning = true;
-    scheduleNextScan();
 
   } catch (e) {
-    // Reset UI if we failed before making the element visible
+    // Roll back UI
     document.getElementById('scannerWrap').classList.remove('active');
     document.getElementById('idleState').style.display = 'flex';
     document.getElementById('scanBtn').textContent = '⬡ Scan QR';
 
-    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+    if (e.toString().includes('permission') || e.toString().includes('NotAllowed')) {
       showToast('Camera permission denied', 'error');
-    } else if (e.name === 'NotFoundError') {
+    } else if (e.toString().includes('NotFound')) {
       showToast('No camera found on this device', 'error');
-    } else if (e.name === 'NotReadableError') {
+    } else if (e.toString().includes('NotReadable')) {
       showToast('Camera in use by another app', 'error');
     } else {
-      showToast('Camera error: ' + e.name, 'error');
+      showToast('Camera error — ' + e, 'error');
     }
   }
 }
 
-function stopScanner() {
+async function stopScanner() {
   scanning = false;
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  stream = null;
-  clearTimeout(animFrame);
+  if (html5QrScanner) {
+    try {
+      await html5QrScanner.stop();
+      html5QrScanner.clear();
+    } catch (_) {}
+    html5QrScanner = null;
+  }
   document.getElementById('scannerWrap').classList.remove('active');
   document.getElementById('idleState').style.display = 'flex';
   document.getElementById('scanBtn').textContent = '⬡ Scan QR';
   document.getElementById('scanStatus').textContent = 'Scanning…';
 }
 
-function scheduleNextScan() {
-  // Capture every 100ms (10fps) — enough for reliable QR detection,
-  // avoids hammering the CPU at 60fps.
-  animFrame = setTimeout(scanLoop, 100);
-}
-
-function scanLoop() {
-  if (!scanning) return;
-
-  const video  = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-
-  // Wait until the video has actual pixel data
-  if (video.readyState !== video.HAVE_ENOUGH_DATA || video.videoWidth === 0) {
-    scheduleNextScan();
-    return;
-  }
-
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(video, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const code = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: 'attemptBoth'
-  });
-
-  if (code && code.data) {
-    const now = Date.now();
-    // Ignore the same code for 3s to avoid double-adding while still pointing at it
-    if (code.data !== lastScanned || now - lastScanTime > 3000) {
-      lastScanned  = code.data;
-      lastScanTime = now;
-      if (addStop(code.data, 'QR')) {
-        showScanSuccess(); // freeze + green feedback, then resume
-        return;           // don't schedule next scan — showScanSuccess handles resuming
-      }
-    }
-  }
-
-  scheduleNextScan();
-}
-
 function showScanSuccess() {
-  // 1. Freeze: stop scheduling new frames (loop already paused by returning above)
-  // 2. White flash overlay
   const flash  = document.getElementById('flash');
   const status = document.getElementById('scanStatus');
 
-  flash.style.transition = 'opacity 0.15s';
-  flash.style.background = '#ffffff';
-  flash.style.opacity    = '0.55';
+  // White flash over the frozen frame
+  flash.style.transition  = 'opacity 0.15s';
+  flash.style.background  = '#ffffff';
+  flash.style.opacity     = '0.55';
 
-  // 3. Green "Added ✓" text in the centre of the scan window
-  status.style.color     = '#47ff9a';
-  status.style.fontSize  = '15px';
+  // Green "Added ✓" label
+  status.style.color      = '#47ff9a';
+  status.style.fontSize   = '15px';
   status.style.textShadow = '0 0 14px #47ff9a';
-  status.textContent     = 'Added ✓';
+  status.textContent      = 'Added ✓';
 
-  // 4. After 1.5s: fade out overlay, reset text, resume scanning
+  // After 1.5s reset and let the library continue scanning
   setTimeout(() => {
-    flash.style.opacity = '0';
-    status.style.color     = 'var(--accent)';
-    status.style.fontSize  = '';
+    flash.style.opacity     = '0';
+    status.style.color      = 'var(--accent)';
+    status.style.fontSize   = '';
     status.style.textShadow = '0 0 12px var(--accent)';
-    status.textContent  = 'Scanning…';
-
-    // Small extra delay so the fade finishes before we start reading frames again
-    setTimeout(() => {
-      flash.style.background = 'var(--accent)';
-      if (scanning) scheduleNextScan();
-    }, 200);
+    status.textContent      = 'Scanning…';
+    setTimeout(() => { flash.style.background = 'var(--accent)'; }, 200);
   }, 1500);
 }
 
