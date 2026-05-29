@@ -16,19 +16,21 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0e0f11;
-    --card: #1f2126;
-    --border: #2c2e35;
-    --accent: #e8ff47;
-    --accent2: #47d9ff;
-    --text: #f0f0ee;
-    --muted: #6b6e78;
-    --danger: #ff5c5c;
-    --success: #47ff9a;
-    --radius: 12px;
+    --bg:      #1A4A8A;
+    --surface: #1e52a0;
+    --card:    #1e52a0;
+    --border:  #3a6fc0;
+    --accent:  #3B82F6;
+    --accent2: #60a5fa;
+    --text:    #F0F5FF;
+    --muted:   #8899AA;
+    --danger:  #EF4444;
+    --warning: #F59E0B;
+    --success: #10B981;
+    --radius:  12px;
   }
 
-  html { background: var(--bg); }
+  html, body { background: var(--bg); }
 
   body {
     background: var(--bg);
@@ -53,7 +55,7 @@
   .header-title {
     font-family: 'Space Mono', monospace; font-size: 11px;
     font-weight: 700; letter-spacing: 0.15em;
-    text-transform: uppercase; color: var(--accent);
+    text-transform: uppercase; color: var(--text);
   }
   .stop-counter {
     font-family: 'Space Mono', monospace; font-size: 11px;
@@ -64,7 +66,7 @@
   /* ── File-origin warning banner ── */
   .origin-warning {
     margin: 14px 20px 0;
-    background: rgba(255,92,92,.1);
+    background: rgba(239,68,68,.12);
     border: 1.5px solid var(--danger);
     border-radius: var(--radius);
     padding: 12px 14px;
@@ -106,7 +108,7 @@
   .scan-frame::before, .scan-frame::after,
   .scan-frame .corner-br, .scan-frame .corner-bl {
     content: ''; position: absolute; width: 22px; height: 22px;
-    border-color: var(--accent); border-style: solid; border-width: 0;
+    border-color: var(--accent2); border-style: solid; border-width: 0;
   }
   .scan-frame::before { top:0; left:0; border-top-width:3px; border-left-width:3px; }
   .scan-frame::after  { top:0; right:0; border-top-width:3px; border-right-width:3px; }
@@ -114,7 +116,7 @@
   .scan-frame .corner-bl { bottom:0; left:0; border-bottom-width:3px; border-left-width:3px; }
   .scan-line {
     position: absolute; left:0; right:0; height:2px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
     animation: scanline 2s ease-in-out infinite; top:0;
   }
   @keyframes scanline {
@@ -125,8 +127,8 @@
   .scan-status {
     position: absolute; bottom:12px; left:0; right:0; text-align: center;
     font-family:'Space Mono',monospace; font-size:10px;
-    letter-spacing:.1em; color:var(--accent);
-    text-transform:uppercase; text-shadow:0 0 12px var(--accent);
+    letter-spacing:.1em; color:var(--text);
+    text-transform:uppercase; text-shadow:0 0 10px rgba(59,130,246,.6);
   }
   .flash {
     position:absolute; inset:0; background:var(--accent); opacity:0;
@@ -154,7 +156,7 @@
     letter-spacing:.08em; text-transform:uppercase;
     transition: all .15s; white-space:nowrap;
   }
-  .btn-primary { background:var(--accent); color:#0e0f11; }
+  .btn-primary { background:var(--accent); color:#ffffff; }
   .btn-primary:hover { filter:brightness(1.1); }
   .btn-primary:active { transform:scale(.97); }
   .btn-ghost { background:var(--card); color:var(--text); border:1.5px solid var(--border); }
@@ -177,14 +179,14 @@
     outline:none; transition:border-color .15s;
   }
   .addr-input::placeholder { color:var(--muted); }
-  .addr-input:focus { border-color:var(--accent2); }
+  .addr-input:focus { border-color:var(--accent); }
 
   /* ── Optimize ── */
   .optimize-row { padding:12px 20px 0; display:none; }
   .optimize-row.show { display:flex; gap:8px; }
   .btn-optimize {
-    background:linear-gradient(135deg,#1a2830,#1a2820);
-    color:var(--accent2); border:1.5px solid var(--accent2); flex:1;
+    background:rgba(59,130,246,.1);
+    color:var(--accent2); border:1.5px solid var(--accent); flex:1;
   }
   .btn-optimize:hover { background:rgba(71,217,255,.08); }
   .btn-optimize:active { transform:scale(.97); }
@@ -218,15 +220,15 @@
     user-select:none;
     touch-action: manipulation;
   }
-  .stop-item.drag-over { border-color:var(--accent2); background:#1a2830; }
-  .stop-item.dragging  { opacity:.45; border-color:var(--accent); }
+  .stop-item.drag-over { border-color:var(--accent); background:rgba(59,130,246,.1); }
+  .stop-item.dragging  { opacity:.45; border-color:var(--accent2); }
   @keyframes slideIn {
     from { opacity:0; transform:translateY(-6px); }
     to   { opacity:1; transform:translateY(0); }
   }
   .stop-num {
     font-family:'Space Mono',monospace; font-size:10px; font-weight:700;
-    color:var(--accent); background:rgba(232,255,71,.1);
+    color:var(--text); background:rgba(59,130,246,.25);
     border-radius:4px; padding:2px 6px; flex-shrink:0; margin-top:1px;
   }
   .stop-text {
@@ -255,7 +257,7 @@
     padding:1px 3px; transition:color .12s;
     touch-action:manipulation;
   }
-  .reorder-btn:hover { color:var(--accent); }
+  .reorder-btn:hover { color:var(--accent2); }
   .reorder-btn:disabled { opacity:.18; cursor:default; }
 
   .empty-state {
@@ -300,10 +302,10 @@
   .bottom-actions { display:flex; gap:8px; }
   .bottom-actions .btn { flex:1; }
   .btn-share {
-    background:var(--card); color:var(--accent2);
-    border:1.5px solid var(--accent2);
+    background:var(--card); color:var(--text);
+    border:1.5px solid var(--border);
   }
-  .btn-share:hover { background:rgba(71,217,255,.08); }
+  .btn-share:hover { background:rgba(59,130,246,.15); }
   .btn-share:active { transform:scale(.97); }
 
   /* ── Share modal ── */
@@ -326,7 +328,7 @@
   .modal-title {
     font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
     letter-spacing:.12em; text-transform:uppercase;
-    color:var(--accent); margin-bottom:16px;
+    color:var(--text); margin-bottom:16px;
   }
   .share-url {
     background:var(--bg); border:1.5px solid var(--border);
@@ -356,7 +358,7 @@
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
   .toast.success { border-color:var(--success); color:var(--success); }
   .toast.error   { border-color:var(--danger);  color:var(--danger); }
-  .toast.info    { border-color:var(--accent2); color:var(--accent2); }
+  .toast.info    { border-color:var(--warning); color:var(--warning); }
 
   /* ── html5-qrcode internal UI overrides ── */
   /* Hide the library's own header, select box, torch button, file input */
@@ -720,9 +722,9 @@ function showScanSuccess() {
   flash.style.opacity     = '0.55';
 
   // Green "Added ✓" label
-  status.style.color      = '#47ff9a';
+  status.style.color      = '#10B981';
   status.style.fontSize   = '15px';
-  status.style.textShadow = '0 0 14px #47ff9a';
+  status.style.textShadow = '0 0 14px rgba(16,185,129,.7)';
   status.textContent      = 'Added ✓';
 
   // After 1.5s reset and let the library continue scanning
@@ -948,23 +950,72 @@ function encodeStop(s) {
   return encodeURIComponent(extractAddress(s.text));
 }
 
-function openRoute(app) {
+// Reverse-geocode a {lat,lon} to a street address string via Nominatim
+async function reverseGeocode(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+    const res  = await fetch(url, { headers: { 'Accept-Language': 'de,en' } });
+    const data = await res.json();
+    if (data && data.address) {
+      const a = data.address;
+      // Build a clean "Street Number, City" string
+      const road   = a.road || a.pedestrian || a.footway || '';
+      const number = a.house_number || '';
+      const city   = a.city || a.town || a.village || a.suburb || '';
+      const parts  = [road + (number ? ' ' + number : ''), city].filter(Boolean);
+      return parts.join(', ') || data.display_name;
+    }
+  } catch {}
+  return null;
+}
+
+async function openRoute(app) {
   if (!stops.length) return;
+
+  // ── Locate the driver and get a return address ──────────────────────────
+  const btn = document.getElementById('routeBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Locating…';
+
+  let returnAddress = null;
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
+    );
+    const { latitude: lat, longitude: lon } = pos.coords;
+    showToast('Got location, building route…', 'info');
+    returnAddress = await reverseGeocode(lat, lon);
+  } catch {
+    // Location denied or timed out — navigate without return stop
+    showToast('Location unavailable — no return stop added', 'info');
+  }
+
+  btn.disabled = false;
+  btn.textContent = origText;
+
+  // ── Build the stop list: all stops + return address appended ────────────
   const enc = stops.map(encodeStop);
+  if (returnAddress) enc.push(encodeURIComponent(returnAddress));
+
   let url;
   if (app === 'google') {
-    if (stops.length === 1) {
+    if (enc.length === 1) {
       url = `https://www.google.com/maps/dir/?api=1&destination=${enc[0]}`;
     } else {
+      // Last encoded entry is the return/destination; everything before is waypoints
       url = `https://www.google.com/maps/dir/?api=1&destination=${enc[enc.length-1]}&waypoints=${enc.slice(0,-1).join('|')}&travelmode=driving`;
     }
   } else if (app === 'apple') {
+    // Apple Maps only supports one destination — send the return address or last stop
     url = `maps://maps.apple.com/?daddr=${enc[enc.length-1]}&dirflg=d`;
-    if (stops.length > 1) showToast('Apple Maps: navigating to final stop', 'info');
+    if (stops.length > 1) showToast('Apple Maps: routing to return point', 'info');
   } else if (app === 'waze') {
+    // Waze single-destination — first delivery stop
     url = `https://waze.com/ul?q=${enc[0]}&navigate=yes`;
     if (stops.length > 1) showToast('Waze: opening first stop', 'info');
   }
+
   window.open(url, '_blank');
 }
 
