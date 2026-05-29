@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RouteScan">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
@@ -166,8 +167,42 @@
   .btn:disabled { opacity:.4; cursor:not-allowed; transform:none !important; filter:none !important; }
 
   /* ── Action row ── */
-  .action-row { display:flex; gap:8px; padding:14px 20px 0; }
-  .action-row .btn { flex:1; }
+  .action-row { display:flex; gap:8px; padding:14px 20px 0; flex-wrap:wrap; }
+  .action-row .btn { flex:1; min-width: calc(50% - 4px); }
+
+  /* Torch button — only visible while scanner is active */
+  .torch-wrap { display:none; padding:8px 20px 0; }
+  .torch-wrap.show { display:flex; gap:8px; }
+  .btn-torch {
+    background: var(--card); color: var(--text);
+    border: 1.5px solid var(--border); flex:1;
+  }
+  .btn-torch.on {
+    background: rgba(245,158,11,.15);
+    border-color: var(--warning); color: var(--warning);
+  }
+
+  /* OCR overlay shown during text scan */
+  .ocr-overlay {
+    display: none; position: absolute; inset: 0;
+    background: rgba(15,45,82,.82);
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 10px;
+    border-radius: var(--radius); z-index: 20;
+  }
+  .ocr-overlay.show { display: flex; }
+  .ocr-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ocr-label {
+    font-family: 'Space Mono', monospace; font-size: 11px;
+    color: var(--text); letter-spacing: .1em; text-transform: uppercase;
+  }
 
   /* ── Manual entry ── */
   .manual-wrap { padding:12px 20px 0; display:none; }
@@ -414,6 +449,10 @@
   </div>
   <div class="scan-status" id="scanStatus">Scanning…</div>
   <div class="flash" id="flash"></div>
+  <div class="ocr-overlay" id="ocrOverlay">
+    <div class="ocr-spinner"></div>
+    <div class="ocr-label" id="ocrLabel">Reading text…</div>
+  </div>
 </div>
 
 <!-- Idle -->
@@ -426,6 +465,12 @@
 <div class="action-row">
   <button class="btn btn-ghost" id="scanBtn" onclick="toggleScanner()">⬡ Scan QR</button>
   <button class="btn btn-ghost" id="manualBtn" onclick="toggleManual()">＋ Manual</button>
+  <button class="btn btn-ghost" id="ocrBtn" onclick="triggerOCR()">⊡ Scan Text</button>
+</div>
+
+<!-- Torch toggle — shown only while scanner is active -->
+<div class="torch-wrap" id="torchWrap">
+  <button class="btn btn-torch btn-full" id="torchBtn" onclick="toggleTorch()">☀ Flashlight OFF</button>
 </div>
 
 <!-- Manual entry -->
@@ -637,6 +682,8 @@ function onDragEnd() {
    permission quirks, and frame decoding internally.
 ══════════════════════════════════════ */
 let html5QrScanner = null;
+let torchOn = false;
+let torchTrack = null;
 
 async function toggleScanner() {
   scanning ? stopScanner() : await startScanner();
@@ -679,6 +726,26 @@ async function startScanner() {
 
     scanning = true;
 
+    // Grab the camera track for torch control
+    try {
+      const stream = html5QrScanner.getRunningTrackCameraCapabilities
+        ? null // newer API path below
+        : null;
+      // html5-qrcode stores the stream internally; access via the video element
+      const videoEl = document.querySelector('#qr-reader video');
+      if (videoEl && videoEl.srcObject) {
+        const tracks = videoEl.srcObject.getVideoTracks();
+        if (tracks.length) {
+          torchTrack = tracks[0];
+          const caps = torchTrack.getCapabilities ? torchTrack.getCapabilities() : {};
+          // Only show torch button if device supports it
+          if (caps.torch) {
+            document.getElementById('torchWrap').classList.add('show');
+          }
+        }
+      }
+    } catch (_) {}
+
   } catch (e) {
     // Roll back UI
     document.getElementById('scannerWrap').classList.remove('active');
@@ -710,6 +777,12 @@ async function stopScanner() {
   document.getElementById('idleState').style.display = 'flex';
   document.getElementById('scanBtn').textContent = '⬡ Scan QR';
   document.getElementById('scanStatus').textContent = 'Scanning…';
+  // Reset torch
+  torchOn = false; torchTrack = null;
+  const tw = document.getElementById('torchWrap');
+  tw.classList.remove('show');
+  const tb = document.getElementById('torchBtn');
+  tb.textContent = '☀ Flashlight OFF'; tb.classList.remove('on');
 }
 
 function showScanSuccess() {
@@ -736,6 +809,113 @@ function showScanSuccess() {
     status.textContent      = 'Scanning…';
     setTimeout(() => { flash.style.background = 'var(--accent)'; }, 200);
   }, 1500);
+}
+
+/* ══════════════════════════════════════
+   TORCH
+══════════════════════════════════════ */
+async function toggleTorch() {
+  if (!torchTrack) { showToast('Torch not available', 'error'); return; }
+  torchOn = !torchOn;
+  try {
+    await torchTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+    const btn = document.getElementById('torchBtn');
+    btn.textContent = torchOn ? '☀ Flashlight ON' : '☀ Flashlight OFF';
+    btn.classList.toggle('on', torchOn);
+  } catch {
+    showToast('Torch not supported on this device', 'error');
+    torchOn = false;
+  }
+}
+
+/* ══════════════════════════════════════
+   OCR — TEXT SCAN (Tesseract.js)
+   Captures one frame from the live camera,
+   runs OCR, extracts the best address match.
+══════════════════════════════════════ */
+async function triggerOCR() {
+  if (!scanning) {
+    showToast('Start the camera first', 'error'); return;
+  }
+
+  const overlay = document.getElementById('ocrOverlay');
+  const label   = document.getElementById('ocrLabel');
+  overlay.classList.add('show');
+  label.textContent = 'Capturing frame…';
+
+  try {
+    // Capture current video frame into a canvas
+    const videoEl = document.querySelector('#qr-reader video');
+    if (!videoEl) throw new Error('No video');
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+    canvas.getContext('2d').drawImage(videoEl, 0, 0);
+    const imageDataUrl = canvas.toDataURL('image/png');
+
+    // Run Tesseract OCR
+    label.textContent = 'Reading text…';
+    const result = await Tesseract.recognize(imageDataUrl, 'deu+eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          label.textContent = `Reading… ${Math.round(m.progress * 100)}%`;
+        }
+      }
+    });
+
+    const fullText = result.data.text;
+    label.textContent = 'Finding address…';
+
+    // Extract address: look for lines containing a German postcode (5 digits)
+    // or a street pattern (word + number). Take the best matching block.
+    const address = extractAddressFromOCR(fullText);
+
+    overlay.classList.remove('show');
+
+    if (address) {
+      if (addStop(address, 'OCR')) {
+        showToast('Address found ✓', 'success');
+      }
+    } else {
+      showToast('No address found — try better lighting', 'error');
+    }
+
+  } catch (err) {
+    overlay.classList.remove('show');
+    console.error(err);
+    showToast('OCR failed — ' + err.message, 'error');
+  }
+}
+
+function extractAddressFromOCR(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Strategy 1: find a line with a German postcode (5 digits), then
+  // look one line above for the street, combine them.
+  for (let i = 0; i < lines.length; i++) {
+    const postcodeMatch = lines[i].match(/\b(\d{5})\s+(.+)/);
+    if (postcodeMatch) {
+      const cityLine    = lines[i];           // "12345 Berlin"
+      const streetLine  = lines[i - 1] || ''; // "Musterstraße 12"
+      // Validate street line looks like "Word(s) + number"
+      if (/\S+\s+\d+/.test(streetLine)) {
+        return `${streetLine.trim()}, ${cityLine.trim()}`;
+      }
+      // Postcode line alone is still useful
+      return cityLine.trim();
+    }
+  }
+
+  // Strategy 2: find any line that looks like "Streetname Number"
+  // German street suffixes: straße, str., gasse, weg, allee, platz, damm, ring
+  const streetRegex = /([A-ZÄÖÜ][a-zäöüß]+(straße|strasse|str\.|gasse|weg|allee|platz|damm|ring|ufer)\s+\d+)/i;
+  for (const line of lines) {
+    const m = line.match(streetRegex);
+    if (m) return line.trim();
+  }
+
+  return null;
 }
 
 /* ══════════════════════════════════════
