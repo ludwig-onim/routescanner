@@ -567,8 +567,12 @@ function escHtml(s) {
    STOPS CRUD
 ══════════════════════════════════════ */
 function addStop(text, type) {
-  const norm = text.trim();
-  if (!norm) return false;
+  const raw  = text.trim();
+  if (!raw) return false;
+
+  // Always store the clean address, never the raw URL
+  const norm = extractAddress(raw);
+
   if (stops.find(s => s.text.toLowerCase() === norm.toLowerCase())) {
     showToast('Already in list', 'error'); return false;
   }
@@ -763,10 +767,24 @@ document.getElementById('addrInput').addEventListener('keydown', e => {
 function extractAddress(text) {
   try {
     const url = new URL(text);
-    const q = url.searchParams.get('q') || url.searchParams.get('query');
-    if (q) return q;
+
+    // geo: URI  e.g. geo:52.123,13.456
     if (url.protocol === 'geo:') return url.pathname;
+
+    // Google Maps — all common parameter names for a destination/place
+    const dest = url.searchParams.get('destination')   // /dir/?destination=
+                || url.searchParams.get('q')            // /maps?q=
+                || url.searchParams.get('query')        // /search?query=
+                || url.searchParams.get('daddr');       // legacy /maps?daddr=
+    if (dest) return dest;
+
+    // /maps/place/Address/@lat,lon  — extract the place slug from the path
+    const placeMatch = url.pathname.match(/\/maps\/place\/([^/@]+)/);
+    if (placeMatch) return decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+
   } catch {}
+
+  // Not a URL — return as-is (plain address string)
   return text;
 }
 
