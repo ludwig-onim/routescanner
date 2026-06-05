@@ -3,521 +3,442 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Route Scanner</title>
-<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiUm91dGUgU2Nhbm5lciIsInNob3J0X25hbWUiOiJSb3V0ZVNjYW4iLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBlMGYxMSIsInRoZW1lX2NvbG9yIjoiI2U4ZmY0NyIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWw7dXRmOCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnPjxyZWN0IHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJyByeD0nMjAnIGZpbGw9JyMwZTBmMTEnLz48dGV4dCB5PScuOWVtJyBmb250LXNpemU9JzgwJyB4PSc1MCUnIHRleHQtYW5jaG9yPSdtaWRkbGUnPvCfk7c8L3RleHQ+PC9zdmc+Iiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV19">
-<meta name="theme-color" content="#e8ff47">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="RouteScan">
+<title>Onim Routes</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1A4A8A;--surface:#1e52a0;--card:#1e52a0;--border:#3a6fc0;
+  --accent:#3B82F6;--accent2:#60a5fa;--text:#F0F5FF;--muted:#8899AA;
+  --danger:#EF4444;--warning:#F59E0B;--success:#10B981;--radius:12px;--done:#4a6fa0;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;min-height:100vh;-webkit-tap-highlight-color:transparent}
+.screen{display:none;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:80px}
+.screen.active{display:flex}
+#screen-dispatcher,#screen-driver{padding-bottom:0}
+.nav-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1.5px solid var(--border);display:flex;z-index:100}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 0;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;border:none;background:none;transition:color .15s}
+.nav-item.active{color:var(--accent2)}
+.nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 18px;height:44px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{filter:brightness(1.1)}.btn-primary:active{transform:scale(.97)}
+.btn-ghost{background:var(--card);color:var(--text);border:1.5px solid var(--border)}.btn-ghost:hover{border-color:var(--accent2)}.btn-ghost:active{transform:scale(.97)}
+.btn-success{background:var(--success);color:#fff;border:none}
+.btn-full{width:100%}.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;filter:none!important}
+.btn-sm{height:34px;padding:0 12px;font-size:10px}
+.input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:0 14px;height:48px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color .15s}
+.input:focus{border-color:var(--accent)}.input::placeholder{color:var(--muted)}select.input{cursor:pointer}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.form-error{font-size:12px;color:var(--danger);min-height:18px;margin-bottom:4px}
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.section-label{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:10px 18px;font-family:'Space Mono',monospace;font-size:11px;color:var(--text);letter-spacing:.05em;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;z-index:500}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--success);color:var(--success)}.toast.error{border-color:var(--danger);color:var(--danger)}.toast.info{border-color:var(--warning);color:var(--warning)}
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;animation:popIn .2s ease}
+@keyframes popIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-title{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text);margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;margin-top:4px}.modal-btns .btn{flex:1}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* LOGIN */
+#screen-login{align-items:center;justify-content:center;padding:32px 24px}
+.login-logo{font-family:'Space Mono',monospace;font-size:32px;font-weight:700;letter-spacing:.1em;color:var(--text);margin-bottom:4px}
+.login-tagline{font-size:13px;color:var(--muted);margin-bottom:36px;text-align:center}
+.login-options{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px}
+.login-option{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 20px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:4px}
+.login-option:hover{border-color:var(--accent)}
+.login-option-title{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}
+.login-option-sub{font-size:12px;color:var(--muted)}
+.or-row{display:flex;align-items:center;gap:10px;margin:4px 0}
+.or-row div{flex:1;height:1px;background:var(--border)}
+.or-row span{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em}
 
-  :root {
-    --bg:      #1A4A8A;
-    --surface: #1e52a0;
-    --card:    #1e52a0;
-    --border:  #3a6fc0;
-    --accent:  #3B82F6;
-    --accent2: #60a5fa;
-    --text:    #F0F5FF;
-    --muted:   #8899AA;
-    --danger:  #EF4444;
-    --warning: #F59E0B;
-    --success: #10B981;
-    --radius:  12px;
-  }
+/* AUTH */
+#screen-auth,#screen-join,#screen-setup{padding:32px 24px;justify-content:center}
+.auth-back{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);cursor:pointer;letter-spacing:.08em;text-transform:uppercase;margin-bottom:24px;display:inline-flex;align-items:center;gap:6px}
+.auth-back:hover{color:var(--text)}
+.auth-title{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.auth-toggle{font-size:13px;color:var(--muted);margin-top:16px;text-align:center}
+.auth-toggle a{color:var(--accent2);cursor:pointer;text-decoration:underline}
 
-  html, body { background: var(--bg); }
+/* DISPATCHER */
+#screen-dispatcher{padding-top:0}
+.disp-tabs{display:flex;border-bottom:1.5px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:50}
+.disp-tab{flex:1;padding:14px 0;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:none;background:none;cursor:pointer;transition:color .15s;border-bottom:2px solid transparent}
+.disp-tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
+.disp-pane{display:none;flex-direction:column;flex:1}
+.disp-pane.active{display:flex}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    line-height: 1.5;
-    -webkit-tap-highlight-color: transparent;
-    /* FIX: let body scroll naturally; footer is sticky, not fixed */
-    max-width: 480px;
-    margin: 0 auto;
-    /* padding-bottom set dynamically after footer renders */
-    padding-bottom: 160px;
-  }
+/* SCANNER */
+.scanner-wrap{position:relative;margin:16px 20px 0;border-radius:var(--radius);overflow:hidden;background:#000;aspect-ratio:1/1;border:1.5px solid var(--border);display:none}
+.scanner-wrap.active{display:block}
+#qr-reader,#qr-reader-driver{border:none!important;width:100%!important}
+#qr-reader__scan_region,#qr-reader-driver__scan_region{background:transparent!important}
+#qr-reader__scan_region video,#qr-reader-driver__scan_region video{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:var(--radius)!important}
+#qr-reader__dashboard,#qr-reader-driver__dashboard{display:none!important}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10}
+.scan-frame{width:55%;aspect-ratio:1;position:relative}
+.scan-frame::before,.scan-frame::after,.scan-frame .c-br,.scan-frame .c-bl{content:'';position:absolute;width:22px;height:22px;border-color:var(--accent2);border-style:solid;border-width:0}
+.scan-frame::before{top:0;left:0;border-top-width:3px;border-left-width:3px}
+.scan-frame::after{top:0;right:0;border-top-width:3px;border-right-width:3px}
+.scan-frame .c-br{bottom:0;right:0;border-bottom-width:3px;border-right-width:3px}
+.scan-frame .c-bl{bottom:0;left:0;border-bottom-width:3px;border-left-width:3px}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent2),transparent);animation:scanline 2s ease-in-out infinite;top:0}
+@keyframes scanline{0%{top:0%;opacity:1}50%{top:100%;opacity:.7}100%{top:0%;opacity:1}}
+.scan-status{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text);text-transform:uppercase;z-index:11}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;border-radius:var(--radius);transition:opacity .05s;z-index:12}
+.idle-state{margin:16px 20px 0;border-radius:var(--radius);border:1.5px dashed var(--border);padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.idle-icon{font-size:40px;line-height:1}
+.idle-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;text-align:center}
+.action-row{display:flex;gap:8px;padding:14px 20px 0;flex-wrap:wrap}
+.action-row .btn{flex:1;min-width:calc(50% - 4px)}
+.torch-wrap{display:none;padding:8px 20px 0}
+.torch-wrap.show{display:flex}
+.btn-torch{background:var(--card);color:var(--text);border:1.5px solid var(--border);flex:1}
+.btn-torch.on{background:rgba(245,158,11,.15);border-color:var(--warning);color:var(--warning)}
+.manual-wrap{padding:12px 20px 0;display:none}
+.manual-wrap.open{display:flex;gap:8px}
+.stops-header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 10px}
+.stops-list{padding:0 20px;display:flex;flex-direction:column;gap:6px}
+.stop-item{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:flex-start;gap:10px;animation:slideIn .2s ease;user-select:none}
+.stop-item.drag-over{border-color:var(--accent);background:rgba(59,130,246,.1)}
+.stop-item.dragging{opacity:.45;border-color:var(--accent2)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.stop-num{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--text);background:rgba(59,130,246,.25);border-radius:4px;padding:2px 6px;flex-shrink:0;margin-top:1px}
+.stop-text{flex:1;font-size:13px;color:var(--text);word-break:break-all;line-height:1.4;cursor:pointer}
+.stop-text:hover{color:var(--accent2);text-decoration:underline dotted}
+.stop-type{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0;margin-top:2px}
+.reorder-btns{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
+.reorder-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;line-height:1.2;padding:1px 3px;transition:color .12s;touch-action:manipulation}
+.reorder-btn:hover{color:var(--accent2)}.reorder-btn:disabled{opacity:.18;cursor:default}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;padding:0 2px;flex-shrink:0;transition:color .15s;touch-action:manipulation}
+.del-btn:hover{color:var(--danger)}
+.stop-edit-wrap{flex:1;display:flex;flex-direction:column;gap:6px}
+.stop-edit-input{width:100%;background:var(--bg);border:1.5px solid var(--accent);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;line-height:1.4}
+.stop-edit-btns{display:flex;gap:6px}
+.stop-edit-save{flex:1;height:30px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.stop-edit-cancel{flex:1;height:30px;background:transparent;color:var(--muted);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.empty-state{padding:8px 20px 0;text-align:center;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.08em}
+.hint{text-align:center;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:6px 0 0;display:none}
+.optimize-row{padding:10px 20px 0;display:none}
+.optimize-row.show{display:flex;gap:8px}
+.btn-optimize{background:rgba(59,130,246,.1);color:var(--accent2);border:1.5px solid var(--accent);flex:1}
+.save-route-row{padding:10px 20px 0;display:none;gap:8px}
+.save-route-row.show{display:flex}
+.route-bar{position:sticky;bottom:60px;background:linear-gradient(to top,var(--bg) 80%,transparent);padding:14px 20px 8px;display:flex;flex-direction:column;gap:8px;z-index:50}
+.nav-options{display:none;gap:8px}.nav-options.open{display:flex;flex-wrap:wrap}
+.nav-options .btn{flex:1;min-width:0;font-size:10px}
+.btn-gmaps{background:#4285F4;color:#fff;border:none}.btn-apple{background:#1c1c1e;color:#fff;border:1.5px solid #3a3a3c}.btn-waze{background:#33ccbb;color:#000;border:none}
+.bottom-actions{display:flex;gap:8px}.bottom-actions .btn{flex:1}
+.btn-share{background:var(--card);color:var(--text);border:1.5px solid var(--border)}
+.ocr-overlay{display:none;position:absolute;inset:0;background:rgba(26,74,138,.82);align-items:center;justify-content:center;flex-direction:column;gap:10px;border-radius:var(--radius);z-index:20}
+.ocr-overlay.show{display:flex}
+.ocr-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ocr-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--text);letter-spacing:.1em;text-transform:uppercase}
 
-  /* ── Header ── */
-  header {
-    padding: 20px 20px 0;
-    display: flex; align-items: flex-start;
-    justify-content: space-between; gap: 12px;
-  }
-  .header-title {
-    font-family: 'Space Mono', monospace; font-size: 11px;
-    font-weight: 700; letter-spacing: 0.15em;
-    text-transform: uppercase; color: var(--text);
-  }
-  .stop-counter {
-    font-family: 'Space Mono', monospace; font-size: 11px;
-    color: var(--muted); padding-top: 2px; flex-shrink: 0;
-  }
-  .stop-counter span { color: var(--text); font-weight: 700; }
+/* DRIVERS PANE */
+.drivers-pane-inner{padding:16px 20px;display:flex;flex-direction:column;gap:12px;flex:1}
+.driver-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;animation:slideIn .2s ease}
+.driver-card.active{border-color:var(--accent)}
+.driver-card-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.15);border-bottom:1.5px solid var(--border)}
+.driver-name-label{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.status-pill{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:99px}
+.pill-waiting{background:rgba(136,153,170,.2);color:var(--muted)}.pill-active{background:rgba(59,130,246,.2);color:var(--accent2)}.pill-complete{background:rgba(16,185,129,.2);color:var(--success)}
+.driver-card-meta{padding:6px 14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;border-bottom:1.5px solid var(--border)}
+.driver-card-meta strong{color:var(--text)}
+.driver-stop-list{padding:8px 14px;display:flex;flex-direction:column;gap:3px}
+.driver-stop-row{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.driver-stop-row:last-child{border-bottom:none}
+.driver-stop-row.done .dsr-addr{color:var(--done);text-decoration:line-through}
+.driver-stop-row.next .dsr-addr{color:var(--text);font-weight:700;font-size:13px}
+.driver-stop-row.future .dsr-addr{color:var(--muted)}
+.dsr-num{font-family:'Space Mono',monospace;font-size:9px;flex-shrink:0;padding-top:2px;min-width:20px}.dsr-addr{flex:1}.dsr-badge{font-size:11px;flex-shrink:0;padding-top:1px}
+.driver-dot-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;color:var(--accent2);font-family:'Space Mono',monospace;letter-spacing:.06em}
+.driver-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-left:4px;box-shadow:0 0 0 3px rgba(59,130,246,.3);animation:dpulse 2s ease-in-out infinite}
+@keyframes dpulse{0%,100%{box-shadow:0 0 0 3px rgba(59,130,246,.3)}50%{box-shadow:0 0 0 6px rgba(59,130,246,.1)}}
+.driver-card-footer{padding:8px 14px;border-top:1.5px solid var(--border);display:flex;gap:8px;background:rgba(0,0,0,.1)}
+.no-drivers{text-align:center;padding:40px 20px;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
 
-  /* ── File-origin warning banner ── */
-  .origin-warning {
-    margin: 14px 20px 0;
-    background: rgba(239,68,68,.12);
-    border: 1.5px solid var(--danger);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    display: none;
-  }
-  .origin-warning.show { display: block; }
-  .origin-warning-title {
-    font-family: 'Space Mono', monospace; font-size: 11px;
-    font-weight: 700; color: var(--danger);
-    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px;
-  }
-  .origin-warning p {
-    font-size: 13px; color: var(--text); line-height: 1.6; margin-bottom: 8px;
-  }
-  .origin-warning p:last-child { margin-bottom: 0; }
-  .origin-warning a { color: var(--accent2); text-decoration: underline; }
-  .origin-warning code {
-    font-family: 'Space Mono', monospace; font-size: 11px;
-    background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 4px;
-  }
-
-  /* ── Scanner ── */
-  .scanner-wrap {
-    position: relative; margin: 16px 20px 0;
-    border-radius: var(--radius); overflow: hidden;
-    background: #000; aspect-ratio: 1 / 1;
-    border: 1.5px solid var(--border); display: none;
-  }
-  .scanner-wrap.active { display: block; }
-  #video { width: 100%; height: 100%; object-fit: cover; display: block; }
-  #canvas { display: none; }
-
-  .scan-overlay {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none;
-  }
-  .scan-frame { width: 55%; aspect-ratio: 1; position: relative; }
-  .scan-frame::before, .scan-frame::after,
-  .scan-frame .corner-br, .scan-frame .corner-bl {
-    content: ''; position: absolute; width: 22px; height: 22px;
-    border-color: var(--accent2); border-style: solid; border-width: 0;
-  }
-  .scan-frame::before { top:0; left:0; border-top-width:3px; border-left-width:3px; }
-  .scan-frame::after  { top:0; right:0; border-top-width:3px; border-right-width:3px; }
-  .scan-frame .corner-br { bottom:0; right:0; border-bottom-width:3px; border-right-width:3px; }
-  .scan-frame .corner-bl { bottom:0; left:0; border-bottom-width:3px; border-left-width:3px; }
-  .scan-line {
-    position: absolute; left:0; right:0; height:2px;
-    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
-    animation: scanline 2s ease-in-out infinite; top:0;
-  }
-  @keyframes scanline {
-    0%   { top:0%; opacity:1; }
-    50%  { top:100%; opacity:.7; }
-    100% { top:0%; opacity:1; }
-  }
-  .scan-status {
-    position: absolute; bottom:12px; left:0; right:0; text-align: center;
-    font-family:'Space Mono',monospace; font-size:10px;
-    letter-spacing:.1em; color:var(--text);
-    text-transform:uppercase; text-shadow:0 0 10px rgba(59,130,246,.6);
-  }
-  .flash {
-    position:absolute; inset:0; background:var(--accent); opacity:0;
-    pointer-events:none; border-radius:var(--radius); transition:opacity .05s;
-  }
-  .flash.show { opacity:.35; }
-
-  /* ── Idle ── */
-  .idle-state {
-    margin: 16px 20px 0; border-radius: var(--radius);
-    border: 1.5px dashed var(--border); padding: 36px 20px;
-    display: flex; flex-direction: column; align-items: center; gap:10px;
-  }
-  .idle-icon { font-size:44px; line-height:1; filter:grayscale(.3); }
-  .idle-label {
-    font-family:'Space Mono',monospace; font-size:11px; color:var(--muted);
-    letter-spacing:.1em; text-transform:uppercase; text-align:center;
-  }
-
-  /* ── Buttons ── */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap:7px;
-    padding: 0 18px; height:44px; border-radius:8px; border:none; cursor:pointer;
-    font-family:'Space Mono',monospace; font-size:11px; font-weight:700;
-    letter-spacing:.08em; text-transform:uppercase;
-    transition: all .15s; white-space:nowrap;
-  }
-  .btn-primary { background:var(--accent); color:#ffffff; }
-  .btn-primary:hover { filter:brightness(1.1); }
-  .btn-primary:active { transform:scale(.97); }
-  .btn-ghost { background:var(--card); color:var(--text); border:1.5px solid var(--border); }
-  .btn-ghost:hover { border-color:var(--muted); }
-  .btn-ghost:active { transform:scale(.97); }
-  .btn-full { width:100%; }
-  .btn:disabled { opacity:.4; cursor:not-allowed; transform:none !important; filter:none !important; }
-
-  /* ── Action row ── */
-  .action-row { display:flex; gap:8px; padding:14px 20px 0; flex-wrap:wrap; }
-  .action-row .btn { flex:1; min-width: calc(50% - 4px); }
-
-  /* Torch button — only visible while scanner is active */
-  .torch-wrap { display:none; padding:8px 20px 0; }
-  .torch-wrap.show { display:flex; gap:8px; }
-  .btn-torch {
-    background: var(--card); color: var(--text);
-    border: 1.5px solid var(--border); flex:1;
-  }
-  .btn-torch.on {
-    background: rgba(245,158,11,.15);
-    border-color: var(--warning); color: var(--warning);
-  }
-
-  /* OCR overlay shown during text scan */
-  .ocr-overlay {
-    display: none; position: absolute; inset: 0;
-    background: rgba(15,45,82,.82);
-    align-items: center; justify-content: center;
-    flex-direction: column; gap: 10px;
-    border-radius: var(--radius); z-index: 20;
-  }
-  .ocr-overlay.show { display: flex; }
-  .ocr-spinner {
-    width: 36px; height: 36px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .ocr-label {
-    font-family: 'Space Mono', monospace; font-size: 11px;
-    color: var(--text); letter-spacing: .1em; text-transform: uppercase;
-  }
-
-  /* ── Manual entry ── */
-  .manual-wrap { padding:12px 20px 0; display:none; }
-  .manual-wrap.open { display:flex; gap:8px; }
-  .addr-input {
-    flex:1; background:var(--card); border:1.5px solid var(--border);
-    border-radius:8px; padding:0 14px; height:44px;
-    color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px;
-    outline:none; transition:border-color .15s;
-  }
-  .addr-input::placeholder { color:var(--muted); }
-  .addr-input:focus { border-color:var(--accent); }
-
-  /* ── Optimize ── */
-  .optimize-row { padding:12px 20px 0; display:none; }
-  .optimize-row.show { display:flex; gap:8px; }
-  .btn-optimize {
-    background:rgba(59,130,246,.1);
-    color:var(--accent2); border:1.5px solid var(--accent); flex:1;
-  }
-  .btn-optimize:hover { background:rgba(71,217,255,.08); }
-  .btn-optimize:active { transform:scale(.97); }
-
-  /* ── Stops header ── */
-  .stops-header {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:24px 20px 10px;
-  }
-  .stops-label {
-    font-family:'Space Mono',monospace; font-size:10px; font-weight:700;
-    letter-spacing:.15em; text-transform:uppercase; color:var(--muted);
-  }
-  .text-btn {
-    font-family:'Space Mono',monospace; font-size:10px;
-    background:none; border:none; cursor:pointer;
-    letter-spacing:.08em; text-transform:uppercase; opacity:.8;
-  }
-  .text-btn:hover { opacity:1; }
-  .text-btn-danger { color:var(--danger); }
-
-  /* ── Stop items ── */
-  .stops-list { padding:0 20px; display:flex; flex-direction:column; gap:6px; }
-
-  .stop-item {
-    background:var(--card); border:1.5px solid var(--border);
-    border-radius:var(--radius); padding:10px 12px;
-    display:flex; align-items:flex-start; gap:10px;
-    animation:slideIn .2s ease;
-    /* No cursor:grab on mobile — use up/down buttons instead */
-    user-select:none;
-    touch-action: manipulation;
-  }
-  .stop-item.drag-over { border-color:var(--accent); background:rgba(59,130,246,.1); }
-  .stop-item.dragging  { opacity:.45; border-color:var(--accent2); }
-  @keyframes slideIn {
-    from { opacity:0; transform:translateY(-6px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
-  .stop-num {
-    font-family:'Space Mono',monospace; font-size:10px; font-weight:700;
-    color:var(--text); background:rgba(59,130,246,.25);
-    border-radius:4px; padding:2px 6px; flex-shrink:0; margin-top:1px;
-  }
-  .stop-text {
-    flex:1; font-size:13px; color:var(--text);
-    word-break:break-all; line-height:1.4;
-  }
-  .stop-type {
-    font-family:'Space Mono',monospace; font-size:9px; color:var(--muted);
-    text-transform:uppercase; letter-spacing:.08em; flex-shrink:0; margin-top:2px;
-  }
-  .del-btn {
-    background:none; border:none; cursor:pointer;
-    color:var(--muted); font-size:16px; line-height:1;
-    padding:0 2px; flex-shrink:0; transition:color .15s;
-    touch-action:manipulation;
-  }
-  .del-btn:hover { color:var(--danger); }
-
-  /* Up/down reorder buttons for mobile */
-  .reorder-btns {
-    display:flex; flex-direction:column; gap:1px; flex-shrink:0;
-  }
-  .reorder-btn {
-    background:none; border:none; cursor:pointer;
-    color:var(--muted); font-size:11px; line-height:1.2;
-    padding:1px 3px; transition:color .12s;
-    touch-action:manipulation;
-  }
-  .reorder-btn:hover { color:var(--accent2); }
-  .reorder-btn:disabled { opacity:.18; cursor:default; }
-
-  .empty-state {
-    padding:8px 20px 0; text-align:center;
-    font-family:'Space Mono',monospace; font-size:11px;
-    color:var(--muted); letter-spacing:.08em;
-  }
-  .reorder-hint {
-    text-align:center; font-family:'Space Mono',monospace; font-size:9px;
-    color:var(--muted); letter-spacing:.1em; text-transform:uppercase;
-    padding:8px 0 0; display:none;
-  }
-
-  /* ── Sticky footer ── */
-  /* FIX: use sticky positioning anchored to page bottom, not fixed.
-     This means it scrolls with content but sticks at the bottom of the viewport
-     when content is shorter than the screen. We achieve a simpler fix:
-     just use a normal bottom bar that lives in the document flow, but we
-     duplicate a spacer so content is never hidden behind it. */
-  .route-bar {
-    position: sticky;
-    bottom: 0;
-    background: linear-gradient(to top, var(--bg) 75%, transparent);
-    padding: 14px 20px 24px;
-    display: flex; flex-direction: column; gap: 8px;
-    z-index: 50;
-    /* widen to full viewport width on mobile despite body max-width */
-    margin-left: -20px; margin-right: -20px;
-    padding-left: 20px; padding-right: 20px;
-    /* ensure it stays at max-width on wider screens */
-    max-width: 480px;
-  }
-  .nav-options { display:none; gap:8px; }
-  .nav-options.open { display:flex; flex-wrap:wrap; }
-  .nav-options .btn { flex:1; min-width:0; font-size:10px; }
-  .btn-gmaps { background:#4285F4; color:#fff; border:none; }
-  .btn-gmaps:hover { filter:brightness(1.1); }
-  .btn-apple { background:#1c1c1e; color:#fff; border:1.5px solid #3a3a3c; }
-  .btn-apple:hover { filter:brightness(1.3); }
-  .btn-waze  { background:#33ccbb; color:#000; border:none; }
-  .btn-waze:hover  { filter:brightness(1.1); }
-  .bottom-actions { display:flex; gap:8px; }
-  .bottom-actions .btn { flex:1; }
-  .btn-share {
-    background:var(--card); color:var(--text);
-    border:1.5px solid var(--border);
-  }
-  .btn-share:hover { background:rgba(59,130,246,.15); }
-  .btn-share:active { transform:scale(.97); }
-
-  /* ── Share modal ── */
-  .modal-backdrop {
-    display:none; position:fixed; inset:0;
-    background:rgba(0,0,0,.75); z-index:200;
-    align-items:flex-end; justify-content:center;
-  }
-  .modal-backdrop.open { display:flex; }
-  .modal {
-    background:var(--card); border:1.5px solid var(--border);
-    border-radius:20px 20px 0 0; padding:24px 20px 36px;
-    width:100%; max-width:480px;
-    animation:slideUp .25s ease;
-  }
-  @keyframes slideUp {
-    from { transform:translateY(40px); opacity:0; }
-    to   { transform:translateY(0); opacity:1; }
-  }
-  .modal-title {
-    font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
-    letter-spacing:.12em; text-transform:uppercase;
-    color:var(--text); margin-bottom:16px;
-  }
-  .share-url {
-    background:var(--bg); border:1.5px solid var(--border);
-    border-radius:8px; padding:10px 14px;
-    font-family:'Space Mono',monospace; font-size:11px;
-    color:var(--muted); word-break:break-all; line-height:1.6;
-    margin-bottom:14px;
-  }
-  .modal-btns { display:flex; gap:8px; }
-  .modal-btns .btn { flex:1; }
-  .modal-note {
-    margin-top:12px; font-family:'Space Mono',monospace; font-size:9px;
-    color:var(--muted); letter-spacing:.07em; line-height:1.7;
-  }
-
-  /* ── Toast ── */
-  .toast {
-    position:fixed; bottom:100px; left:50%;
-    transform:translateX(-50%) translateY(10px);
-    background:var(--card); border:1.5px solid var(--border);
-    border-radius:8px; padding:10px 16px;
-    font-family:'Space Mono',monospace; font-size:11px;
-    color:var(--text); letter-spacing:.05em;
-    opacity:0; transition:all .2s; pointer-events:none;
-    white-space:nowrap; z-index:300;
-  }
-  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-  .toast.success { border-color:var(--success); color:var(--success); }
-  .toast.error   { border-color:var(--danger);  color:var(--danger); }
-  .toast.info    { border-color:var(--warning); color:var(--warning); }
-
-  /* ── html5-qrcode internal UI overrides ── */
-  /* Hide the library's own header, select box, torch button, file input */
-  #qr-reader {
-    border: none !important;
-    width: 100% !important;
-  }
-  #qr-reader__scan_region { background: transparent !important; }
-  #qr-reader__scan_region video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    border-radius: var(--radius) !important;
-  }
-  #qr-reader__dashboard { display: none !important; }
-  #qr-reader__status_span { display: none !important; }
-
-  /* Keep our custom overlay on top of the library's video */
-  .scan-overlay {
-    pointer-events: none;
-    z-index: 10;
-  }
-  .scan-status { z-index: 11; }
-  .flash { z-index: 12; }
+/* DRIVER SCREEN */
+#screen-driver{padding-top:0}
+.drive-pane{flex-direction:column;padding:16px 20px;gap:12px;display:none}
+.drive-pane.active{display:flex}
+.route-progress{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.rp-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.rp-stops{font-size:22px;font-weight:700;font-family:'Space Mono',monospace;color:var(--text)}
+.rp-eta{font-size:13px;color:var(--accent2);margin-top:2px}
+.drive-stop-list{display:flex;flex-direction:column;gap:6px}
+.drive-stop-item{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;align-items:flex-start;gap:10px}
+.drive-stop-item.done{opacity:.45;border-color:transparent}
+.drive-stop-item.next{border-color:var(--accent)}
+.drive-stop-item.next .dsi-addr{font-weight:700;font-size:15px}
+.dsi-num{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);flex-shrink:0;padding-top:3px;min-width:24px}
+.dsi-addr{flex:1;line-height:1.4;font-size:14px}
+.dsi-done-btn{background:var(--success);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.dsi-done-tick{color:var(--success);font-size:16px;flex-shrink:0}
+.waiting-route{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px 20px;text-align:center}
+.waiting-icon{font-size:48px}
+.waiting-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.share-url{background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);word-break:break-all;line-height:1.6;margin-bottom:14px}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <div class="header-title">Route Scanner</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:3px;">Scan QR codes, build a route</div>
-  </div>
-  <div class="stop-counter">Stops: <span id="countDisplay">0</span></div>
-</header>
-
-<!-- file:// origin warning -->
-<div class="origin-warning" id="originWarning">
-  <div class="origin-warning-title">⚠ Hosting required for full features</div>
-  <p>You're opening this file directly (<code>file://</code>). Chrome blocks camera access and external requests on local files for security reasons — this affects QR scanning and route optimization.</p>
-  <p><strong>Quick fix:</strong> Host the file over HTTPS. The easiest option is to drag this file to <a href="https://app.netlify.com/drop" target="_blank">netlify.com/drop</a> — you'll get a live URL in under a minute. Manual address entry and navigation work fine right now.</p>
-</div>
-
-<!-- Scanner — html5-qrcode renders the video feed inside #scannerWrap -->
-<div class="scanner-wrap" id="scannerWrap">
-  <div id="qr-reader"></div>
-  <div class="scan-overlay" id="scanOverlay">
-    <div class="scan-frame">
-      <div class="corner-br"></div>
-      <div class="corner-bl"></div>
-      <div class="scan-line"></div>
+<!-- LOGIN -->
+<div class="screen active" id="screen-login">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px">
+    <div class="login-logo">ONIM</div>
+    <div class="login-tagline">Delivery Route Management</div>
+    <div class="login-options">
+      <div class="login-option" onclick="showScreen('screen-auth','signin')">
+        <div class="login-option-title">Log In</div>
+        <div class="login-option-sub">Admin / dispatcher account</div>
+      </div>
+      <div class="login-option" onclick="showScreen('screen-auth','signup')">
+        <div class="login-option-title">Sign Up</div>
+        <div class="login-option-sub">Create a new admin account</div>
+      </div>
+      <div class="or-row"><div></div><span>OR</span><div></div></div>
+      <div class="login-option" onclick="showScreen('screen-join')">
+        <div class="login-option-title">Join a Team</div>
+        <div class="login-option-sub">Driver or dispatcher — no email needed</div>
+      </div>
     </div>
   </div>
-  <div class="scan-status" id="scanStatus">Scanning…</div>
-  <div class="flash" id="flash"></div>
-  <div class="ocr-overlay" id="ocrOverlay">
-    <div class="ocr-spinner"></div>
-    <div class="ocr-label" id="ocrLabel">Reading text…</div>
+</div>
+
+<!-- AUTH -->
+<div class="screen" id="screen-auth">
+  <div onclick="showScreen('screen-login')" class="auth-back">← Back</div>
+  <div class="auth-title" id="authTitle">Log In</div>
+  <div class="auth-sub" id="authSub">Sign in to your admin account</div>
+  <div class="form-group"><label class="form-label">Email</label><input class="input" id="authEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+  <div class="form-group"><label class="form-label">Password</label><input class="input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password"></div>
+  <div class="form-error" id="authError"></div>
+  <button class="btn btn-primary btn-full" id="authSubmitBtn" onclick="submitAuth()">Log In</button>
+  <div class="auth-toggle" id="authToggle">No account? <a onclick="toggleAuthMode()">Sign up</a></div>
+</div>
+
+<!-- SETUP -->
+<div class="screen" id="screen-setup">
+  <div class="auth-title" id="setupTitle">Welcome!</div>
+  <div class="auth-sub">How do you want to use Onim?</div>
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+    <div class="login-option" onclick="showSetupStep('create-team')">
+      <div class="login-option-title">Create a Team</div>
+      <div class="login-option-sub">Manage drivers and routes together</div>
+    </div>
+    <div class="login-option" onclick="goSolo()">
+      <div class="login-option-title">Go Solo</div>
+      <div class="login-option-sub">Use just for yourself</div>
+    </div>
+  </div>
+  <div id="createTeamStep" style="display:none;margin-top:20px">
+    <div class="divider"></div>
+    <div class="section-label">New Team</div>
+    <div class="form-group"><label class="form-label">Team Name</label><input class="input" id="teamNameInput" type="text" placeholder="e.g. Onim Berlin"></div>
+    <div class="form-group"><label class="form-label">Team Password</label><input class="input" id="teamPasswordInput" type="password" placeholder="Drivers use this to join"></div>
+    <div class="form-error" id="teamError"></div>
+    <button class="btn btn-primary btn-full" onclick="createTeam()">Create Team</button>
   </div>
 </div>
 
-<!-- Idle -->
-<div class="idle-state" id="idleState">
-  <div class="idle-icon">📷</div>
-  <div class="idle-label">Tap "Scan QR" to start<br>or enter addresses manually</div>
-</div>
-
-<!-- Action row -->
-<div class="action-row">
-  <button class="btn btn-ghost" id="scanBtn" onclick="toggleScanner()">⬡ Scan QR</button>
-  <button class="btn btn-ghost" id="manualBtn" onclick="toggleManual()">＋ Manual</button>
-  <button class="btn btn-ghost" id="ocrBtn" onclick="triggerOCR()">⊡ Scan Text</button>
-</div>
-
-<!-- Torch toggle — shown only while scanner is active -->
-<div class="torch-wrap" id="torchWrap">
-  <button class="btn btn-torch btn-full" id="torchBtn" onclick="toggleTorch()">☀ Flashlight OFF</button>
-</div>
-
-<!-- Manual entry -->
-<div class="manual-wrap" id="manualWrap">
-  <input class="addr-input" id="addrInput" type="text" placeholder="Address or place name…" autocomplete="off">
-  <button class="btn btn-primary" onclick="addManual()">Add</button>
-</div>
-
-<!-- Optimize -->
-<div class="optimize-row" id="optimizeRow">
-  <button class="btn btn-optimize btn-full" id="optimizeBtn" onclick="optimizeRoute()">⟳ Optimize Order</button>
-</div>
-
-<!-- Stops -->
-<div class="stops-header" id="stopsHeaderEl" style="display:none">
-  <div class="stops-label">Stops</div>
-  <button class="text-btn text-btn-danger" onclick="clearAll()">Clear all</button>
-</div>
-<div class="stops-list" id="stopsList"></div>
-<div class="empty-state" id="emptyState">No stops yet</div>
-<div class="reorder-hint" id="reorderHint">▲▼ reorder · × remove</div>
-
-<!-- Sticky footer -->
-<div class="route-bar" id="routeBar">
-  <div class="nav-options" id="navOptions">
-    <button class="btn btn-gmaps" onclick="openRoute('google')">Google Maps</button>
-    <button class="btn btn-apple" onclick="openRoute('apple')">Apple Maps</button>
-    <button class="btn btn-waze"  onclick="openRoute('waze')">Waze</button>
+<!-- JOIN TEAM -->
+<div class="screen" id="screen-join">
+  <div onclick="showScreen('screen-login')" class="auth-back">← Back</div>
+  <div class="auth-title">Join a Team</div>
+  <div class="auth-sub">Enter the team name and password given to you</div>
+  <div id="joinStep1">
+    <div class="form-group"><label class="form-label">Team Name</label><input class="input" id="joinTeamName" type="text" placeholder="Team name…" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Team Password</label><input class="input" id="joinTeamPassword" type="password" placeholder="Password…"></div>
+    <div class="form-error" id="joinError"></div>
+    <button class="btn btn-primary btn-full" onclick="verifyTeam()">Continue</button>
   </div>
-  <div class="bottom-actions">
-    <button class="btn btn-share" id="shareBtn" onclick="openShareModal()" disabled>⬆ Share</button>
-    <button class="btn btn-primary" id="routeBtn" onclick="toggleNav()" disabled>Navigate →</button>
+  <div id="joinStep2" style="display:none;margin-top:4px">
+    <div class="form-group"><label class="form-label">Your Name</label><input class="input" id="joinMemberName" type="text" placeholder="Your name…" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Your Role</label>
+      <select class="input" id="joinMemberRole"><option value="driver">Driver</option><option value="dispatcher">Dispatcher</option></select>
+    </div>
+    <div class="form-error" id="joinStep2Error"></div>
+    <button class="btn btn-primary btn-full" onclick="joinTeam()">Join Team</button>
   </div>
 </div>
 
-<!-- Share modal -->
-<div class="modal-backdrop" id="shareModal" onclick="closeShareOnBackdrop(event)">
+<!-- DISPATCHER -->
+<div class="screen" id="screen-dispatcher">
+  <div class="disp-tabs">
+    <button class="disp-tab active" id="tab-scanner" onclick="switchDispTab('scanner')">Scanner</button>
+    <button class="disp-tab" id="tab-drivers" onclick="switchDispTab('drivers')">Drivers</button>
+  </div>
+
+  <!-- Scanner pane -->
+  <div class="disp-pane active" id="pane-scanner">
+    <div class="scanner-wrap" id="scannerWrap">
+      <div id="qr-reader"></div>
+      <div class="scan-overlay"><div class="scan-frame"><div class="c-br"></div><div class="c-bl"></div><div class="scan-line"></div></div></div>
+      <div class="scan-status" id="scanStatus">Scanning…</div>
+      <div class="flash" id="flash"></div>
+      <div class="ocr-overlay" id="ocrOverlay"><div class="ocr-spinner"></div><div class="ocr-label" id="ocrLabel">Reading…</div></div>
+    </div>
+    <div class="idle-state" id="idleState"><div class="idle-icon">📷</div><div class="idle-label">Tap "Scan QR" to start<br>or enter addresses manually</div></div>
+    <div class="action-row">
+      <button class="btn btn-ghost" id="scanBtn" onclick="toggleScanner()">⬡ Scan QR</button>
+      <button class="btn btn-ghost" onclick="toggleManual()">＋ Manual</button>
+      <button class="btn btn-ghost" onclick="triggerOCR()">⊡ Scan Text</button>
+    </div>
+    <div class="torch-wrap" id="torchWrap"><button class="btn btn-torch btn-full" id="torchBtn" onclick="toggleTorch()">☀ Flashlight OFF</button></div>
+    <div class="manual-wrap" id="manualWrap">
+      <input class="input" id="addrInput" type="text" placeholder="Address or place name…" autocomplete="off" style="height:44px">
+      <button class="btn btn-primary" onclick="addManual()">Add</button>
+    </div>
+    <div class="optimize-row" id="optimizeRow"><button class="btn btn-optimize btn-full" id="optimizeBtn" onclick="optimizeRoute()">⟳ Optimize Order</button></div>
+    <div class="stops-header" id="stopsHeaderEl" style="display:none">
+      <div class="section-label" style="margin:0">Stops <span id="countDisplay" style="color:var(--text)">0</span></div>
+      <button style="font-family:'Space Mono',monospace;font-size:10px;color:var(--danger);background:none;border:none;cursor:pointer;letter-spacing:.08em;text-transform:uppercase" onclick="clearAll()">Clear all</button>
+    </div>
+    <div class="stops-list" id="stopsList"></div>
+    <div class="empty-state" id="emptyState">No stops yet</div>
+    <div class="hint" id="reorderHint">▲▼ reorder · tap address to edit · × remove</div>
+    <div class="save-route-row" id="saveRouteRow">
+      <button class="btn btn-ghost btn-sm" onclick="saveRouteToCloud()" style="flex:1">💾 Save Route</button>
+      <button class="btn btn-ghost btn-sm" onclick="openAssignModal()" style="flex:1">→ Assign Driver</button>
+    </div>
+    <div class="route-bar">
+      <div class="nav-options" id="navOptions">
+        <button class="btn btn-gmaps" onclick="openRoute('google')">Google Maps</button>
+        <button class="btn btn-apple" onclick="openRoute('apple')">Apple Maps</button>
+        <button class="btn btn-waze" onclick="openRoute('waze')">Waze</button>
+      </div>
+      <div class="bottom-actions">
+        <button class="btn btn-share" id="shareBtn" onclick="openShareModal()" disabled>⬆ Share</button>
+        <button class="btn btn-primary" id="routeBtn" onclick="toggleNav()" disabled>Navigate →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drivers pane -->
+  <div class="disp-pane" id="pane-drivers">
+    <div class="drivers-pane-inner" id="driversPane">
+      <div class="no-drivers" id="noDriversMsg">No drivers active yet</div>
+    </div>
+  </div>
+
+  <nav class="nav-bar">
+    <button class="nav-item active" id="disp-nav-scanner" onclick="switchDispTab('scanner')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zM18 14h3v2h-3zM14 18h2v3h-2zM18 18h3v3h-3z"/></svg>Scanner
+    </button>
+    <button class="nav-item" id="disp-nav-drivers" onclick="switchDispTab('drivers')">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Drivers
+    </button>
+    <button class="nav-item" onclick="signOut()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out
+    </button>
+  </nav>
+</div>
+
+<!-- DRIVER -->
+<div class="screen" id="screen-driver">
+  <div style="padding:16px 20px 0;display:flex;align-items:center;justify-content:space-between">
+    <div><div style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase" id="driverGreeting">ONIM Routes</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px" id="driverTeamLabel"></div></div>
+  </div>
+
+  <!-- Drive mode -->
+  <div class="drive-pane active" id="drivePaneContent">
+    <div class="waiting-route" id="waitingRoute">
+      <div class="waiting-icon">⏳</div>
+      <div class="waiting-label">Waiting for route<br>from dispatcher</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">Or scan your own stops below</div>
+    </div>
+    <div id="activeRouteContent" style="display:none;flex-direction:column;gap:10px">
+      <div class="route-progress">
+        <div class="rp-label">Current Route</div>
+        <div class="rp-stops" id="driveStopsCounter">0 / 0</div>
+        <div class="rp-eta" id="driveEta"></div>
+      </div>
+      <div class="drive-stop-list" id="driveStopList"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-gmaps" style="flex:1" onclick="openDriveRoute('google')">Google Maps</button>
+        <button class="btn btn-apple" style="flex:1" onclick="openDriveRoute('apple')">Apple Maps</button>
+        <button class="btn btn-waze" style="flex:1" onclick="openDriveRoute('waze')">Waze</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan mode -->
+  <div class="drive-pane" id="driverScanPane">
+    <div class="scanner-wrap" id="driverScannerWrap">
+      <div id="qr-reader-driver"></div>
+      <div class="scan-overlay"><div class="scan-frame"><div class="c-br"></div><div class="c-bl"></div><div class="scan-line"></div></div></div>
+      <div class="scan-status" id="driverScanStatus">Scanning…</div>
+      <div class="flash" id="driverFlash"></div>
+    </div>
+    <div class="idle-state" id="driverIdleState"><div class="idle-icon">📷</div><div class="idle-label">Tap "Scan QR" to start</div></div>
+    <div class="action-row">
+      <button class="btn btn-ghost" id="driverScanBtn" onclick="toggleDriverScanner()">⬡ Scan QR</button>
+      <button class="btn btn-ghost" onclick="toggleDriverManual()">＋ Manual</button>
+    </div>
+    <div class="manual-wrap" id="driverManualWrap">
+      <input class="input" id="driverAddrInput" type="text" placeholder="Address…" autocomplete="off" style="height:44px">
+      <button class="btn btn-primary" onclick="addDriverManual()">Add</button>
+    </div>
+    <div class="stops-header" id="driverStopsHeader" style="display:none">
+      <div class="section-label" style="margin:0">My Stops</div>
+      <button style="font-family:'Space Mono',monospace;font-size:10px;color:var(--danger);background:none;border:none;cursor:pointer" onclick="clearDriverStops()">Clear</button>
+    </div>
+    <div class="stops-list" id="driverStopsList"></div>
+    <div style="padding:10px 20px 0;display:none" id="driverSendRow">
+      <button class="btn btn-primary btn-full" onclick="sendDriverRoute()">Send to Drive Mode →</button>
+    </div>
+  </div>
+
+  <nav class="nav-bar">
+    <button class="nav-item active" id="driver-nav-drive" onclick="switchDriverTab('drive')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Drive
+    </button>
+    <button class="nav-item" id="driver-nav-scan" onclick="switchDriverTab('scan')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zM18 14h3v2h-3zM14 18h2v3h-2zM18 18h3v3h-3z"/></svg>Scan
+    </button>
+    <button class="nav-item" onclick="signOut()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out
+    </button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+<div class="modal-backdrop" id="shareModal" onclick="if(event.target===this)closeModal('shareModal')">
   <div class="modal">
-    <div class="modal-title">Share Route Link</div>
+    <div class="modal-title">Share Route</div>
     <div class="share-url" id="shareUrl"></div>
     <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeShareModal()">Close</button>
+      <button class="btn btn-ghost" onclick="closeModal('shareModal')">Close</button>
       <button class="btn btn-primary" onclick="copyShareLink()">Copy Link</button>
     </div>
-    <div class="modal-note">
-      Stops are encoded in the URL — no server or account needed.<br>
-      Anyone with the link loads the same route instantly.
+    <div style="margin-top:10px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);line-height:1.7">Stops encoded in URL · no server needed</div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="assignModal" onclick="if(event.target===this)closeModal('assignModal')">
+  <div class="modal">
+    <div class="modal-title">Assign Route to Driver</div>
+    <div class="form-group">
+      <label class="form-label">Select Driver</label>
+      <select class="input" id="assignDriverSelect"><option value="">Choose driver…</option></select>
+    </div>
+    <div id="assignPreviewInfo" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+    <div class="form-error" id="assignError"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('assignModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="assignToDriver()">Assign</button>
     </div>
   </div>
 </div>
@@ -525,748 +446,606 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ══════════════════════════════════════
-   ORIGIN DETECTION
-══════════════════════════════════════ */
-const isFileOrigin = location.protocol === 'file:';
-if (isFileOrigin) {
-  document.getElementById('originWarning').classList.add('show');
+const SUPA_URL='https://mdatqojudkxwajaidyze.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kYXRxb2p1ZGt4d2FqYWlkeXplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1ODg3NTksImV4cCI6MjA5NjE2NDc1OX0.YN-H4otltsNktZFv4GQNVhEzacajsxASVBPhcWVtVMU';
+const H={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+async function db(method,table,body,params=''){
+  const res=await fetch(`${SUPA_URL}/rest/v1/${table}${params}`,{method,headers:H,body:body?JSON.stringify(body):undefined});
+  const text=await res.text(); if(!res.ok)throw new Error(text); return text?JSON.parse(text):null;
 }
 
-/* ══════════════════════════════════════
-   STATE
-══════════════════════════════════════ */
-let stops = [];
-let scanning = false;
-let lastScanned = '';
-let lastScanTime = 0;
-let navOpen = false;
-let dragSrcIdx = null;
+/* SESSION */
+let session=JSON.parse(localStorage.getItem('onim_session')||'null');
+function saveSession(s){session=s;localStorage.setItem('onim_session',JSON.stringify(s));}
+function clearSession(){session=null;localStorage.removeItem('onim_session');}
 
-/* ══════════════════════════════════════
-   TOAST
-══════════════════════════════════════ */
+/* CRYPTO */
+async function hashPassword(pw){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ROUTING */
+function showScreen(id,mode){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='screen-auth')setAuthMode(mode||'signin');
+}
+function routeBySession(){
+  if(!session){showScreen('screen-login');return;}
+  if(session.role==='driver'){showScreen('screen-driver');initDriverScreen();}
+  else{showScreen('screen-dispatcher');initDispatcher();}
+}
+
+/* AUTH */
+let authMode='signin';
+function setAuthMode(m){
+  authMode=m;
+  document.getElementById('authTitle').textContent=m==='signin'?'Log In':'Sign Up';
+  document.getElementById('authSub').textContent=m==='signin'?'Sign in to your admin account':'Create your admin account';
+  document.getElementById('authSubmitBtn').textContent=m==='signin'?'Log In':'Sign Up';
+  document.getElementById('authToggle').innerHTML=m==='signin'?'No account? <a onclick="toggleAuthMode()">Sign up</a>':'Already have one? <a onclick="toggleAuthMode()">Log in</a>';
+  document.getElementById('authError').textContent='';
+}
+function toggleAuthMode(){setAuthMode(authMode==='signin'?'signup':'signin');}
+async function submitAuth(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pw=document.getElementById('authPassword').value;
+  const errEl=document.getElementById('authError'); errEl.textContent='';
+  if(!email||!pw){errEl.textContent='Fill in all fields';return;}
+  const hash=await hashPassword(pw);
+  try{
+    if(authMode==='signup'){
+      const existing=await db('GET','admins',null,`?email=eq.${encodeURIComponent(email)}&limit=1`);
+      if(existing&&existing.length){errEl.textContent='Email already registered';return;}
+      const res=await db('POST','admins',{email,password_hash:hash});
+      saveSession({type:'admin',id:res[0].id,name:email,role:'dispatcher',teamId:null,teamName:null});
+      showScreen('screen-setup');
+    }else{
+      const res=await db('GET','admins',null,`?email=eq.${encodeURIComponent(email)}&limit=1`);
+      if(!res||!res.length){errEl.textContent='No account found';return;}
+      if(res[0].password_hash!==hash){errEl.textContent='Wrong password';return;}
+      // Load team name if they have one
+      let teamName=null;
+      if(res[0].team_id){const t=await db('GET','teams',null,`?id=eq.${res[0].team_id}&limit=1`);teamName=t&&t[0]?t[0].name:null;}
+      saveSession({type:'admin',id:res[0].id,name:email,role:'dispatcher',teamId:res[0].team_id,teamName});
+      routeBySession();
+    }
+  }catch(e){errEl.textContent='Error: '+e.message;}
+}
+document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
+
+/* SETUP */
+function showSetupStep(s){document.getElementById('createTeamStep').style.display=s==='create-team'?'block':'none';}
+function goSolo(){routeBySession();}
+async function createTeam(){
+  const name=document.getElementById('teamNameInput').value.trim();
+  const pw=document.getElementById('teamPasswordInput').value;
+  const errEl=document.getElementById('teamError'); errEl.textContent='';
+  if(!name||!pw){errEl.textContent='Fill in all fields';return;}
+  const hash=await hashPassword(pw);
+  try{
+    const existing=await db('GET','teams',null,`?name=eq.${encodeURIComponent(name)}&limit=1`);
+    if(existing&&existing.length){errEl.textContent='Team name taken';return;}
+    const res=await db('POST','teams',{name,password_hash:hash,admin_id:session.id});
+    const team=res[0];
+    await db('PATCH',`admins?id=eq.${session.id}`,{team_id:team.id});
+    saveSession({...session,teamId:team.id,teamName:team.name});
+    showToast('Team created ✓','success');
+    routeBySession();
+  }catch(e){errEl.textContent='Error: '+e.message;}
+}
+document.getElementById('teamPasswordInput').addEventListener('keydown',e=>{if(e.key==='Enter')createTeam();});
+
+/* JOIN TEAM */
+let joinedTeam=null;
+async function verifyTeam(){
+  const name=document.getElementById('joinTeamName').value.trim();
+  const pw=document.getElementById('joinTeamPassword').value;
+  const errEl=document.getElementById('joinError'); errEl.textContent='';
+  if(!name||!pw){errEl.textContent='Fill in all fields';return;}
+  const hash=await hashPassword(pw);
+  try{
+    const res=await db('GET','teams',null,`?name=eq.${encodeURIComponent(name)}&limit=1`);
+    if(!res||!res.length){errEl.textContent='Team not found';return;}
+    if(res[0].password_hash!==hash){errEl.textContent='Wrong password';return;}
+    joinedTeam=res[0];
+    document.getElementById('joinStep1').style.display='none';
+    document.getElementById('joinStep2').style.display='block';
+  }catch(e){errEl.textContent='Error: '+e.message;}
+}
+async function joinTeam(){
+  const name=document.getElementById('joinMemberName').value.trim();
+  const role=document.getElementById('joinMemberRole').value;
+  const errEl=document.getElementById('joinStep2Error'); errEl.textContent='';
+  if(!name){errEl.textContent='Enter your name';return;}
+  try{
+    const res=await db('POST','members',{team_id:joinedTeam.id,name,role});
+    const member=res[0];
+    saveSession({type:'member',id:member.id,name:member.name,role:member.role,teamId:joinedTeam.id,teamName:joinedTeam.name});
+    showToast('Welcome, '+name+'!','success');
+    routeBySession();
+  }catch(e){errEl.textContent='Error: '+e.message;}
+}
+document.getElementById('joinMemberName').addEventListener('keydown',e=>{if(e.key==='Enter')joinTeam();});
+document.getElementById('joinTeamPassword').addEventListener('keydown',e=>{if(e.key==='Enter')verifyTeam();});
+
+/* SIGN OUT */
+function signOut(){
+  if(!confirm('Sign out?'))return;
+  clearSession();stopScanner();stopDriverScanner();
+  // Reset join form
+  document.getElementById('joinStep1').style.display='block';
+  document.getElementById('joinStep2').style.display='none';
+  joinedTeam=null;
+  showScreen('screen-login');
+}
+
+/* TOAST */
 let toastTimer;
-function showToast(msg, type = '') {
+function showToast(msg,type=''){
   clearTimeout(toastTimer);
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  toastTimer = setTimeout(() => { t.className = 'toast'; }, 2600);
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+type;
+  toastTimer=setTimeout(()=>t.className='toast',2800);
 }
 
-/* ══════════════════════════════════════
-   RENDER
-══════════════════════════════════════ */
-function updateUI() {
-  const n = stops.length;
-  document.getElementById('countDisplay').textContent = n;
-  document.getElementById('emptyState').style.display = n ? 'none' : 'block';
-  document.getElementById('stopsHeaderEl').style.display = n ? 'flex' : 'none';
-  document.getElementById('reorderHint').style.display = n > 1 ? 'block' : 'none';
-  document.getElementById('optimizeRow').classList.toggle('show', n > 2);
-  document.getElementById('shareBtn').disabled = n === 0;
-  document.getElementById('routeBtn').disabled = n === 0;
+/* DISPATCHER TABS */
+function switchDispTab(tab){
+  ['scanner','drivers'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('pane-'+t).classList.toggle('active',t===tab);
+    document.getElementById('disp-nav-'+t).classList.toggle('active',t===tab);
+  });
+  if(tab==='drivers')loadDriversPane();
+}
+function initDispatcher(){updateUI();loadDriversPane();startDriverPoller();}
+
+/* STOPS */
+let stops=[],scanning=false,html5QrScanner=null;
+let torchOn=false,torchTrack=null,lastScanned='',lastScanTime=0,navOpen=false,dragSrcIdx=null;
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function extractAddress(text){
+  try{const url=new URL(text);if(url.protocol==='geo:')return url.pathname;const d=url.searchParams.get('destination')||url.searchParams.get('q')||url.searchParams.get('query')||url.searchParams.get('daddr');if(d)return d;const m=url.pathname.match(/\/maps\/place\/([^/@]+)/);if(m)return decodeURIComponent(m[1].replace(/\+/g,' '));}catch{}return text;
+}
+function addStop(text,type){
+  const raw=text.trim();if(!raw)return false;
+  const norm=extractAddress(raw);
+  if(stops.find(s=>s.text.toLowerCase()===norm.toLowerCase())){showToast('Already in list','error');return false;}
+  stops.push({text:norm,type});updateUI();return true;
+}
+function removeStop(i){stops.splice(i,1);updateUI();}
+function moveStop(i,dir){const j=i+dir;if(j<0||j>=stops.length)return;[stops[i],stops[j]]=[stops[j],stops[i]];updateUI();}
+function clearAll(){if(!stops.length)return;if(confirm('Remove all stops?')){stops.length=0;updateUI();}}
+
+function updateUI(){
+  const n=stops.length;
+  const el=id=>document.getElementById(id);
+  if(el('countDisplay'))el('countDisplay').textContent=n;
+  if(el('emptyState'))el('emptyState').style.display=n?'none':'block';
+  if(el('stopsHeaderEl'))el('stopsHeaderEl').style.display=n?'flex':'none';
+  if(el('reorderHint'))el('reorderHint').style.display=n>1?'block':'none';
+  if(el('optimizeRow'))el('optimizeRow').classList.toggle('show',n>2);
+  if(el('shareBtn'))el('shareBtn').disabled=n===0;
+  if(el('routeBtn'))el('routeBtn').disabled=n===0;
+  if(el('saveRouteRow'))el('saveRouteRow').classList.toggle('show',n>0);
   renderStops();
 }
 
-function renderStops() {
-  const list = document.getElementById('stopsList');
-  list.innerHTML = '';
-  stops.forEach((s, i) => {
-    const div = document.createElement('div');
-    div.className = 'stop-item';
-    div.dataset.idx = i;
-
-    // Desktop drag
-    div.draggable = true;
-    div.addEventListener('dragstart', onDragStart);
-    div.addEventListener('dragover',  onDragOver);
-    div.addEventListener('drop',      onDrop);
-    div.addEventListener('dragend',   onDragEnd);
-
-    const label = s.text.length > 56 ? s.text.slice(0, 56) + '…' : s.text;
-
-    div.innerHTML = `
-      <div class="stop-num">${String(i + 1).padStart(2, '0')}</div>
-      <div class="stop-text">${escHtml(label)}</div>
-      <div class="stop-type">${s.type}</div>
-      <div class="reorder-btns">
-        <button class="reorder-btn" data-action="up"   data-i="${i}" ${i === 0 ? 'disabled' : ''} title="Move up">▲</button>
-        <button class="reorder-btn" data-action="down" data-i="${i}" ${i === stops.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
-      </div>
-      <button class="del-btn" data-i="${i}">×</button>
-    `;
-
-    div.querySelector('[data-action="up"]').addEventListener('click', () => moveStop(i, -1));
-    div.querySelector('[data-action="down"]').addEventListener('click', () => moveStop(i, +1));
-    div.querySelector('.del-btn').addEventListener('click', () => removeStop(i));
-
+function renderStops(){
+  const list=document.getElementById('stopsList');if(!list)return;
+  list.innerHTML='';
+  stops.forEach((s,i)=>{
+    const div=document.createElement('div');div.className='stop-item';div.dataset.idx=i;
+    div.draggable=true;
+    div.addEventListener('dragstart',onDragStart);div.addEventListener('dragover',onDragOver);div.addEventListener('drop',onDrop);div.addEventListener('dragend',onDragEnd);
+    const label=s.text.length>56?s.text.slice(0,56)+'…':s.text;
+    div.innerHTML=`<div class="stop-num">${String(i+1).padStart(2,'0')}</div><div class="stop-text" title="Tap to edit">${escHtml(label)}</div><div class="stop-type">${s.type}</div><div class="reorder-btns"><button class="reorder-btn" ${i===0?'disabled':''}>▲</button><button class="reorder-btn" ${i===stops.length-1?'disabled':''}>▼</button></div><button class="del-btn">×</button>`;
+    div.querySelectorAll('.reorder-btn')[0].onclick=()=>moveStop(i,-1);
+    div.querySelectorAll('.reorder-btn')[1].onclick=()=>moveStop(i,+1);
+    div.querySelector('.del-btn').onclick=()=>removeStop(i);
+    div.querySelector('.stop-text').onclick=()=>openInlineEdit(div,i);
     list.appendChild(div);
   });
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function openInlineEdit(div,i){
+  div.draggable=false;
+  const te=div.querySelector('.stop-text'),tye=div.querySelector('.stop-type'),re=div.querySelector('.reorder-btns'),de=div.querySelector('.del-btn');
+  te.style.display=tye.style.display=re.style.display=de.style.display='none';
+  const wrap=document.createElement('div');wrap.className='stop-edit-wrap';
+  wrap.innerHTML=`<input class="stop-edit-input" type="text" value="${escHtml(stops[i].text)}" autocomplete="off" spellcheck="true"><div class="stop-edit-btns"><button class="stop-edit-save">Save</button><button class="stop-edit-cancel">Cancel</button></div>`;
+  div.insertBefore(wrap,tye);
+  const input=wrap.querySelector('.stop-edit-input');input.focus();input.setSelectionRange(input.value.length,input.value.length);
+  const save=()=>{const v=input.value.trim();if(v)stops[i]={text:v,type:'EDIT'};renderStops();};
+  wrap.querySelector('.stop-edit-save').onclick=save;
+  wrap.querySelector('.stop-edit-cancel').onclick=()=>renderStops();
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')save();if(e.key==='Escape')renderStops();});
 }
 
-/* ══════════════════════════════════════
-   STOPS CRUD
-══════════════════════════════════════ */
-function addStop(text, type) {
-  const raw  = text.trim();
-  if (!raw) return false;
+function onDragStart(e){dragSrcIdx=+e.currentTarget.dataset.idx;setTimeout(()=>e.currentTarget.classList.add('dragging'),0);e.dataTransfer.effectAllowed='move';}
+function onDragOver(e){e.preventDefault();document.querySelectorAll('.stop-item').forEach(el=>el.classList.remove('drag-over'));e.currentTarget.classList.add('drag-over');}
+function onDrop(e){e.preventDefault();const dest=+e.currentTarget.dataset.idx;if(dragSrcIdx!==null&&dragSrcIdx!==dest){const m=stops.splice(dragSrcIdx,1)[0];stops.splice(dest,0,m);updateUI();}}
+function onDragEnd(){document.querySelectorAll('.stop-item').forEach(el=>el.classList.remove('dragging','drag-over'));dragSrcIdx=null;}
 
-  // Always store the clean address, never the raw URL
-  const norm = extractAddress(raw);
-
-  if (stops.find(s => s.text.toLowerCase() === norm.toLowerCase())) {
-    showToast('Already in list', 'error'); return false;
-  }
-  stops.push({ text: norm, type });
-  updateUI();
-  return true;
-}
-
-function removeStop(i) {
-  stops.splice(i, 1);
-  updateUI();
-}
-
-function moveStop(i, dir) {
-  const j = i + dir;
-  if (j < 0 || j >= stops.length) return;
-  [stops[i], stops[j]] = [stops[j], stops[i]];
-  updateUI();
-}
-
-function clearAll() {
-  if (!stops.length) return;
-  if (confirm('Remove all stops?')) { stops.length = 0; updateUI(); }
-}
-
-/* ══════════════════════════════════════
-   DRAG-TO-REORDER (desktop mouse)
-══════════════════════════════════════ */
-function onDragStart(e) {
-  dragSrcIdx = +e.currentTarget.dataset.idx;
-  setTimeout(() => e.currentTarget.classList.add('dragging'), 0);
-  e.dataTransfer.effectAllowed = 'move';
-}
-function onDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.stop-item').forEach(el => el.classList.remove('drag-over'));
-  e.currentTarget.classList.add('drag-over');
-}
-function onDrop(e) {
-  e.preventDefault();
-  const dest = +e.currentTarget.dataset.idx;
-  if (dragSrcIdx !== null && dragSrcIdx !== dest) {
-    const moved = stops.splice(dragSrcIdx, 1)[0];
-    stops.splice(dest, 0, moved);
-    updateUI();
-  }
-}
-function onDragEnd() {
-  document.querySelectorAll('.stop-item').forEach(el => {
-    el.classList.remove('dragging', 'drag-over');
-  });
-  dragSrcIdx = null;
-}
-
-/* ══════════════════════════════════════
-   SCANNER  (html5-qrcode library)
-   Replaces manual jsQR + getUserMedia pipeline.
-   html5-qrcode handles camera selection, Android
-   permission quirks, and frame decoding internally.
-══════════════════════════════════════ */
-let html5QrScanner = null;
-let torchOn = false;
-let torchTrack = null;
-
-async function toggleScanner() {
-  scanning ? stopScanner() : await startScanner();
-}
-
-async function startScanner() {
-  if (isFileOrigin) {
-    showToast('Camera blocked on file:// — host it first', 'error');
-    return;
-  }
-
-  // Show the scanner container first so the library can measure it
+/* SCANNER */
+async function toggleScanner(){scanning?stopScanner():await startScanner();}
+async function startScanner(){
+  if(!navigator.mediaDevices){showToast('Camera not available','error');return;}
   document.getElementById('scannerWrap').classList.add('active');
-  document.getElementById('idleState').style.display = 'none';
-  document.getElementById('scanBtn').textContent = '◼ Stop Scan';
-
-  try {
-    html5QrScanner = new Html5Qrcode('qr-reader');
-
-    await html5QrScanner.start(
-      { facingMode: 'environment' },
-      {
-        fps: 10,        // check 10 frames per second
-        qrbox: { width: 220, height: 220 }, // focus region
-        aspectRatio: 1.0
-      },
-      (decodedText) => {
-        // Called once per successful decode
-        const now = Date.now();
-        if (decodedText !== lastScanned || now - lastScanTime > 3000) {
-          lastScanned  = decodedText;
-          lastScanTime = now;
-          if (addStop(decodedText, 'QR')) {
-            showScanSuccess();
-          }
-        }
-      },
-      () => { /* scan failure per frame — ignore */ }
-    );
-
-    scanning = true;
-
-    // Grab the camera track for torch control
-    try {
-      const stream = html5QrScanner.getRunningTrackCameraCapabilities
-        ? null // newer API path below
-        : null;
-      // html5-qrcode stores the stream internally; access via the video element
-      const videoEl = document.querySelector('#qr-reader video');
-      if (videoEl && videoEl.srcObject) {
-        const tracks = videoEl.srcObject.getVideoTracks();
-        if (tracks.length) {
-          torchTrack = tracks[0];
-          const caps = torchTrack.getCapabilities ? torchTrack.getCapabilities() : {};
-          // Only show torch button if device supports it
-          if (caps.torch) {
-            document.getElementById('torchWrap').classList.add('show');
-          }
-        }
-      }
-    } catch (_) {}
-
-  } catch (e) {
-    // Roll back UI
+  document.getElementById('idleState').style.display='none';
+  document.getElementById('scanBtn').textContent='◼ Stop Scan';
+  try{
+    html5QrScanner=new Html5Qrcode('qr-reader');
+    await html5QrScanner.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220},aspectRatio:1.0},
+      decoded=>{const now=Date.now();if(decoded!==lastScanned||now-lastScanTime>3000){lastScanned=decoded;lastScanTime=now;if(addStop(decoded,'QR'))showScanSuccess();}},()=>{});
+    scanning=true;
+    setTimeout(()=>{const v=document.querySelector('#qr-reader video');if(v&&v.srcObject){const tracks=v.srcObject.getVideoTracks();if(tracks.length){torchTrack=tracks[0];const caps=torchTrack.getCapabilities?torchTrack.getCapabilities():{};if(caps.torch)document.getElementById('torchWrap').classList.add('show');}}},1000);
+  }catch(e){
     document.getElementById('scannerWrap').classList.remove('active');
-    document.getElementById('idleState').style.display = 'flex';
-    document.getElementById('scanBtn').textContent = '⬡ Scan QR';
-
-    if (e.toString().includes('permission') || e.toString().includes('NotAllowed')) {
-      showToast('Camera permission denied', 'error');
-    } else if (e.toString().includes('NotFound')) {
-      showToast('No camera found on this device', 'error');
-    } else if (e.toString().includes('NotReadable')) {
-      showToast('Camera in use by another app', 'error');
-    } else {
-      showToast('Camera error — ' + e, 'error');
-    }
+    document.getElementById('idleState').style.display='flex';
+    document.getElementById('scanBtn').textContent='⬡ Scan QR';
+    showToast('Camera error: '+e,'error');
   }
 }
-
-async function stopScanner() {
-  scanning = false;
-  if (html5QrScanner) {
-    try {
-      await html5QrScanner.stop();
-      html5QrScanner.clear();
-    } catch (_) {}
-    html5QrScanner = null;
-  }
-  document.getElementById('scannerWrap').classList.remove('active');
-  document.getElementById('idleState').style.display = 'flex';
-  document.getElementById('scanBtn').textContent = '⬡ Scan QR';
-  document.getElementById('scanStatus').textContent = 'Scanning…';
-  // Reset torch
-  torchOn = false; torchTrack = null;
-  const tw = document.getElementById('torchWrap');
-  tw.classList.remove('show');
-  const tb = document.getElementById('torchBtn');
-  tb.textContent = '☀ Flashlight OFF'; tb.classList.remove('on');
+async function stopScanner(){
+  scanning=false;
+  if(html5QrScanner){try{await html5QrScanner.stop();html5QrScanner.clear();}catch(_){}html5QrScanner=null;}
+  const el=id=>document.getElementById(id);
+  el('scannerWrap').classList.remove('active');el('idleState').style.display='flex';el('scanBtn').textContent='⬡ Scan QR';el('scanStatus').textContent='Scanning…';
+  torchOn=false;torchTrack=null;el('torchWrap').classList.remove('show');el('torchBtn').classList.remove('on');el('torchBtn').textContent='☀ Flashlight OFF';
+}
+function showScanSuccess(){
+  const f=document.getElementById('flash'),s=document.getElementById('scanStatus');
+  f.style.opacity='.55';s.style.color='#10B981';s.style.fontSize='15px';s.textContent='Added ✓';
+  setTimeout(()=>{f.style.opacity='0';s.style.color='';s.style.fontSize='';s.textContent='Scanning…';},1500);
+}
+async function toggleTorch(){
+  if(!torchTrack){showToast('Torch not available','error');return;}
+  torchOn=!torchOn;
+  try{await torchTrack.applyConstraints({advanced:[{torch:torchOn}]});const b=document.getElementById('torchBtn');b.textContent=torchOn?'☀ Flashlight ON':'☀ Flashlight OFF';b.classList.toggle('on',torchOn);}
+  catch{showToast('Torch not supported','error');torchOn=false;}
 }
 
-function showScanSuccess() {
-  const flash  = document.getElementById('flash');
-  const status = document.getElementById('scanStatus');
-
-  // White flash over the frozen frame
-  flash.style.transition  = 'opacity 0.15s';
-  flash.style.background  = '#ffffff';
-  flash.style.opacity     = '0.55';
-
-  // Green "Added ✓" label
-  status.style.color      = '#10B981';
-  status.style.fontSize   = '15px';
-  status.style.textShadow = '0 0 14px rgba(16,185,129,.7)';
-  status.textContent      = 'Added ✓';
-
-  // After 1.5s reset and let the library continue scanning
-  setTimeout(() => {
-    flash.style.opacity     = '0';
-    status.style.color      = 'var(--accent)';
-    status.style.fontSize   = '';
-    status.style.textShadow = '0 0 12px var(--accent)';
-    status.textContent      = 'Scanning…';
-    setTimeout(() => { flash.style.background = 'var(--accent)'; }, 200);
-  }, 1500);
-}
-
-/* ══════════════════════════════════════
-   TORCH
-══════════════════════════════════════ */
-async function toggleTorch() {
-  if (!torchTrack) { showToast('Torch not available', 'error'); return; }
-  torchOn = !torchOn;
-  try {
-    await torchTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
-    const btn = document.getElementById('torchBtn');
-    btn.textContent = torchOn ? '☀ Flashlight ON' : '☀ Flashlight OFF';
-    btn.classList.toggle('on', torchOn);
-  } catch {
-    showToast('Torch not supported on this device', 'error');
-    torchOn = false;
-  }
-}
-
-/* ══════════════════════════════════════
-   OCR — TEXT SCAN (Tesseract.js)
-   Captures one frame from the live camera,
-   runs OCR, extracts the best address match.
-══════════════════════════════════════ */
-async function triggerOCR() {
-  if (!scanning) {
-    showToast('Start the camera first', 'error'); return;
-  }
-
-  const overlay = document.getElementById('ocrOverlay');
-  const label   = document.getElementById('ocrLabel');
-  overlay.classList.add('show');
-  label.textContent = 'Capturing frame…';
-
-  try {
-    // Capture current video frame into a canvas
-    const videoEl = document.querySelector('#qr-reader video');
-    if (!videoEl) throw new Error('No video');
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = videoEl.videoWidth;
-    canvas.height = videoEl.videoHeight;
-    canvas.getContext('2d').drawImage(videoEl, 0, 0);
-    const imageDataUrl = canvas.toDataURL('image/png');
-
-    // Run Tesseract OCR
-    label.textContent = 'Reading text…';
-    const result = await Tesseract.recognize(imageDataUrl, 'deu+eng', {
-      logger: m => {
-        if (m.status === 'recognizing text') {
-          label.textContent = `Reading… ${Math.round(m.progress * 100)}%`;
-        }
-      }
-    });
-
-    const fullText = result.data.text;
-    label.textContent = 'Finding address…';
-
-    // Extract address: look for lines containing a German postcode (5 digits)
-    // or a street pattern (word + number). Take the best matching block.
-    const address = extractAddressFromOCR(fullText);
-
+/* OCR */
+async function triggerOCR(){
+  if(!scanning){showToast('Start camera first','error');return;}
+  const overlay=document.getElementById('ocrOverlay'),label=document.getElementById('ocrLabel');
+  overlay.classList.add('show');label.textContent='Capturing…';
+  try{
+    const v=document.querySelector('#qr-reader video');if(!v)throw new Error('No video');
+    const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
+    label.textContent='Reading text…';
+    const result=await Tesseract.recognize(c.toDataURL('image/png'),'deu+eng',{logger:m=>{if(m.status==='recognizing text')label.textContent=`Reading… ${Math.round(m.progress*100)}%`;}});
+    const addr=extractAddressFromOCR(result.data.text);
     overlay.classList.remove('show');
-
-    if (address) {
-      if (addStop(address, 'OCR')) {
-        showToast('Address found ✓', 'success');
-      }
-    } else {
-      showToast('No address found — try better lighting', 'error');
-    }
-
-  } catch (err) {
-    overlay.classList.remove('show');
-    console.error(err);
-    showToast('OCR failed — ' + err.message, 'error');
-  }
+    if(addr){if(addStop(addr,'OCR'))showToast('Address found ✓','success');}
+    else showToast('No address found — try better lighting','error');
+  }catch(e){overlay.classList.remove('show');showToast('OCR failed','error');}
 }
-
-function extractAddressFromOCR(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-  // Strategy 1: find a line with a German postcode (5 digits), then
-  // look one line above for the street, combine them.
-  for (let i = 0; i < lines.length; i++) {
-    const postcodeMatch = lines[i].match(/\b(\d{5})\s+(.+)/);
-    if (postcodeMatch) {
-      const cityLine    = lines[i];           // "12345 Berlin"
-      const streetLine  = lines[i - 1] || ''; // "Musterstraße 12"
-      // Validate street line looks like "Word(s) + number"
-      if (/\S+\s+\d+/.test(streetLine)) {
-        return `${streetLine.trim()}, ${cityLine.trim()}`;
-      }
-      // Postcode line alone is still useful
-      return cityLine.trim();
-    }
-  }
-
-  // Strategy 2: find any line that looks like "Streetname Number"
-  // German street suffixes: straße, str., gasse, weg, allee, platz, damm, ring
-  const streetRegex = /([A-ZÄÖÜ][a-zäöüß]+(straße|strasse|str\.|gasse|weg|allee|platz|damm|ring|ufer)\s+\d+)/i;
-  for (const line of lines) {
-    const m = line.match(streetRegex);
-    if (m) return line.trim();
-  }
-
+function extractAddressFromOCR(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  for(let i=0;i<lines.length;i++){const m=lines[i].match(/\b(\d{5})\s+(.+)/);if(m){const city=lines[i],street=lines[i-1]||'';if(/\S+\s+\d+/.test(street))return`${street.trim()}, ${city.trim()}`;return city.trim();}}
+  const sr=/([A-ZÄÖÜ][a-zäöüß]+(straße|strasse|str\.|gasse|weg|allee|platz|damm|ring|ufer)\s+\d+)/i;
+  for(const l of lines){const m=l.match(sr);if(m)return l.trim();}
   return null;
 }
 
-/* ══════════════════════════════════════
-   MANUAL ENTRY
-══════════════════════════════════════ */
-function toggleManual() {
-  const w = document.getElementById('manualWrap');
-  const open = w.classList.toggle('open');
-  if (open) document.getElementById('addrInput').focus();
+/* MANUAL */
+function toggleManual(){const w=document.getElementById('manualWrap');const o=w.classList.toggle('open');if(o)document.getElementById('addrInput').focus();}
+function addManual(){const inp=document.getElementById('addrInput');const v=inp.value.trim();if(!v){showToast('Enter an address','error');return;}if(addStop(v,'TEXT')){inp.value='';showToast('Stop added ✓','success');}}
+document.getElementById('addrInput').addEventListener('keydown',e=>{if(e.key==='Enter')addManual();});
+
+/* OPTIMIZE */
+async function getUserLocation(){return new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),rej,{timeout:10000,maximumAge:60000}));}
+async function geocode(address){
+  const q=extractAddress(address);const query=/berlin/i.test(q)?q:q+', Berlin';
+  const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+  const res=await fetch(url,{headers:{'Accept-Language':'de,en'}});const data=await res.json();
+  if(!data.length){const u2=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;const r2=await fetch(u2,{headers:{'Accept-Language':'de,en'}});const d2=await r2.json();if(!d2.length)return null;return{lat:parseFloat(d2[0].lat),lon:parseFloat(d2[0].lon)};}
+  return{lat:parseFloat(data[0].lat),lon:parseFloat(data[0].lon)};
+}
+async function getDrivingKm(from,to){
+  const url=`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
+  const res=await fetch(url);const data=await res.json();
+  if(data.code!=='Ok'||!data.routes.length)return Infinity;return data.routes[0].distance/1000;
+}
+async function optimizeRoute(){
+  if(stops.length<2)return;
+  const btn=document.getElementById('optimizeBtn');btn.disabled=true;
+  try{
+    btn.textContent='⟳ Locating you…';
+    let origin;try{origin=await getUserLocation();}catch{showToast('Location denied','error');btn.textContent='⟳ Optimize Order';btn.disabled=false;return;}
+    const coords=[],failed=[];
+    for(let i=0;i<stops.length;i++){btn.textContent=`⟳ Geocoding ${i+1}/${stops.length}…`;const c=await geocode(stops[i].text);coords.push(c);if(!c)failed.push(i);await new Promise(r=>setTimeout(r,300));}
+    const resolved=coords.map(c=>c||origin);
+    const unvisited=stops.map((_,i)=>i),orderedIdx=[];let cur=origin,step=0;
+    while(unvisited.length>0){
+      step++;let bestIdx=-1,bestKm=Infinity,bestPos=0;
+      for(let p=0;p<unvisited.length;p++){const si=unvisited[p];btn.textContent=`⟳ Step ${step}: ${p+1}/${unvisited.length}…`;const km=await getDrivingKm(cur,resolved[si]);if(km<bestKm){bestKm=km;bestIdx=si;bestPos=p;}}
+      orderedIdx.push(bestIdx);unvisited.splice(bestPos,1);cur=resolved[bestIdx];
+    }
+    const old=stops.slice();stops=orderedIdx.map(i=>old[i]);updateUI();
+    showToast(failed.length?`Optimized (${failed.length} not found)`:'Route optimized ✓',failed.length?'info':'success');
+  }catch(e){console.error(e);showToast('Optimization failed','error');}
+  btn.textContent='⟳ Optimize Order';btn.disabled=false;
 }
 
-function addManual() {
-  const input = document.getElementById('addrInput');
-  const val = input.value.trim();
-  if (!val) { showToast('Enter an address first', 'error'); return; }
-  if (addStop(val, 'TEXT')) { input.value = ''; showToast('Stop added ✓', 'success'); }
+/* NAVIGATION */
+function toggleNav(){if(!stops.length)return;navOpen=!navOpen;document.getElementById('navOptions').classList.toggle('open',navOpen);document.getElementById('routeBtn').textContent=navOpen?'Cancel ↑':'Navigate →';}
+async function reverseGeocode(lat,lon){
+  try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,{headers:{'Accept-Language':'de,en'}});const data=await res.json();if(data&&data.address){const a=data.address;const road=a.road||a.pedestrian||'';const num=a.house_number||'';const city=a.city||a.town||a.village||a.suburb||'';return[road+(num?' '+num:''),city].filter(Boolean).join(', ')||data.display_name;}}catch{}return null;
+}
+function encodeStop(s){return encodeURIComponent(extractAddress(s.text));}
+async function openRoute(app){
+  if(!stops.length)return;
+  const btn=document.getElementById('routeBtn');btn.disabled=true;const orig=btn.textContent;btn.textContent='Locating…';
+  let returnAddr=null;
+  try{const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000}));returnAddr=await reverseGeocode(pos.coords.latitude,pos.coords.longitude);}catch{showToast('Location unavailable','info');}
+  btn.disabled=false;btn.textContent=orig;
+  const enc=stops.map(encodeStop);if(returnAddr)enc.push(encodeURIComponent(returnAddr));
+  let url;
+  if(app==='google'){url=enc.length===1?`https://www.google.com/maps/dir/?api=1&destination=${enc[0]}`:`https://www.google.com/maps/dir/?api=1&destination=${enc[enc.length-1]}&waypoints=${enc.slice(0,-1).join('|')}&travelmode=driving`;}
+  else if(app==='apple'){url=`maps://maps.apple.com/?daddr=${enc[enc.length-1]}&dirflg=d`;}
+  else if(app==='waze'){url=`https://waze.com/ul?q=${enc[0]}&navigate=yes`;}
+  window.open(url,'_blank');
 }
 
-document.getElementById('addrInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') addManual();
-});
-
-/* ══════════════════════════════════════
-   ROUTE OPTIMIZATION
-   Strategy:
-   1. Get user's GPS location (origin + return point)
-   2. Geocode all stops via Nominatim
-   3. Build a full driving-distance matrix via OSRM (free, no key)
-   4. Greedy nearest-neighbour from origin, return to origin at end
-══════════════════════════════════════ */
-function extractAddress(text) {
-  try {
-    const url = new URL(text);
-
-    // geo: URI  e.g. geo:52.123,13.456
-    if (url.protocol === 'geo:') return url.pathname;
-
-    // Google Maps — all common parameter names for a destination/place
-    const dest = url.searchParams.get('destination')   // /dir/?destination=
-                || url.searchParams.get('q')            // /maps?q=
-                || url.searchParams.get('query')        // /search?query=
-                || url.searchParams.get('daddr');       // legacy /maps?daddr=
-    if (dest) return dest;
-
-    // /maps/place/Address/@lat,lon  — extract the place slug from the path
-    const placeMatch = url.pathname.match(/\/maps\/place\/([^/@]+)/);
-    if (placeMatch) return decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
-
-  } catch {}
-
-  // Not a URL — return as-is (plain address string)
-  return text;
+/* SHARE */
+function buildShareUrl(){const data=stops.map(s=>({t:s.text,k:s.type}));const enc=btoa(unescape(encodeURIComponent(JSON.stringify(data))));return location.href.split('#')[0]+'#stops='+enc;}
+function openShareModal(){if(!stops.length)return;document.getElementById('shareUrl').textContent=buildShareUrl();document.getElementById('shareModal').classList.add('open');}
+async function copyShareLink(){try{await navigator.clipboard.writeText(buildShareUrl());showToast('Link copied ✓','success');closeModal('shareModal');}catch{showToast('Copy the link manually','info');}}
+function loadFromHash(){
+  try{const hash=location.hash;if(!hash.startsWith('#stops='))return;
+  const data=JSON.parse(decodeURIComponent(escape(atob(hash.slice('#stops='.length)))));
+  if(Array.isArray(data)&&data.length){data.forEach(d=>{if(d.t)stops.push({text:d.t,type:d.k||'LINK'});});updateUI();showToast(`Loaded ${stops.length} stops from link`,'success');}}catch{}
 }
 
-function getUserLocation() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('Geolocation not supported')); return; }
-    navigator.geolocation.getCurrentPosition(
-      p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      e => reject(e),
-      { timeout: 10000, maximumAge: 60000 }
-    );
+/* SAVE / ASSIGN */
+async function saveRouteToCloud(){
+  if(!stops.length||!session)return;
+  try{
+    const[route]=await db('POST','routes',{team_id:session.teamId||null,status:'saved'});
+    await db('POST','stops',stops.map((s,i)=>({route_id:route.id,team_id:session.teamId||null,position:i+1,address:s.text,status:'pending'})));
+    showToast('Route saved ✓','success');
+  }catch(e){showToast('Save failed: '+e.message,'error');}
+}
+async function openAssignModal(){
+  if(!stops.length){showToast('Add stops first','error');return;}
+  if(!session||!session.teamId){showToast('No team — use Save Route instead','info');return;}
+  const members=await db('GET','members',null,`?team_id=eq.${session.teamId}&role=eq.driver`);
+  const sel=document.getElementById('assignDriverSelect');
+  sel.innerHTML='<option value="">Choose driver…</option>';
+  (members||[]).forEach(m=>{const opt=document.createElement('option');opt.value=m.id;opt.textContent=m.name;sel.appendChild(opt);});
+  document.getElementById('assignPreviewInfo').textContent=`${stops.length} stop${stops.length>1?'s':''}`;
+  document.getElementById('assignError').textContent='';
+  document.getElementById('assignModal').classList.add('open');
+}
+async function assignToDriver(){
+  const memberId=document.getElementById('assignDriverSelect').value;
+  const memberName=document.getElementById('assignDriverSelect').selectedOptions[0]?.text;
+  const errEl=document.getElementById('assignError');
+  if(!memberId){errEl.textContent='Select a driver';return;}
+  try{
+    let driverRec=null;
+    const existing=await db('GET','drivers',null,`?team_id=eq.${session.teamId}`);
+    driverRec=(existing||[]).find(d=>d.name===memberName);
+    if(!driverRec){const[d]=await db('POST','drivers',{name:memberName,team_id:session.teamId,clocked_in:true});driverRec=d;}
+    const oldRoutes=await db('GET','routes',null,`?driver_id=eq.${driverRec.id}&status=in.(pending,active)`);
+    for(const r of oldRoutes||[])await db('PATCH',`routes?id=eq.${r.id}`,{status:'replaced'});
+    const[route]=await db('POST','routes',{driver_id:driverRec.id,member_id:memberId,team_id:session.teamId,status:'pending'});
+    await db('POST','stops',stops.map((s,i)=>({route_id:route.id,team_id:session.teamId,position:i+1,address:s.text,status:'pending'})));
+    closeModal('assignModal');showToast('Route assigned ✓','success');loadDriversPane();
+  }catch(e){errEl.textContent='Error: '+e.message;}
+}
+
+/* DRIVERS PANE */
+let driverPollTimer=null;
+function startDriverPoller(){clearInterval(driverPollTimer);driverPollTimer=setInterval(loadDriversPane,20000);}
+async function loadDriversPane(){
+  if(!session||!session.teamId)return;
+  const pane=document.getElementById('driversPane');if(!pane)return;
+  try{
+    const members=await db('GET','members',null,`?team_id=eq.${session.teamId}&role=eq.driver`);
+    pane.innerHTML='';
+    if(!members||!members.length){pane.innerHTML='<div class="no-drivers">No drivers in team yet</div>';return;}
+    for(const m of members){
+      const allDrivers=await db('GET','drivers',null,`?team_id=eq.${session.teamId}`);
+      const drv=(allDrivers||[]).find(d=>d.name===m.name);
+      let route=null,routeStops=[];
+      if(drv){
+        const routes=await db('GET','routes',null,`?driver_id=eq.${drv.id}&status=in.(pending,active)&order=created_at.desc&limit=1`);
+        route=routes&&routes[0];
+        if(route){routeStops=await db('GET','stops',null,`?route_id=eq.${route.id}&order=position.asc`)||[];}
+      }
+      pane.appendChild(buildDriverCard(m,route,routeStops));
+    }
+  }catch(e){console.error(e);}
+}
+function buildDriverCard(member,route,stopList){
+  const doneCount=stopList.filter(s=>s.status==='done').length;
+  const total=stopList.length,remaining=total-doneCount,nextIdx=stopList.findIndex(s=>s.status==='pending');
+  let statusLabel='Waiting',statusClass='pill-waiting',cardClass='';
+  if(route&&route.status==='active'){statusLabel='En route';statusClass='pill-active';cardClass='active';}
+  else if(route&&route.status==='pending'){statusLabel='Ready';statusClass='pill-waiting';}
+  else if(route&&route.status==='complete'){statusLabel='Complete';statusClass='pill-complete';}
+  const card=document.createElement('div');card.className=`driver-card ${cardClass}`;
+  const header=document.createElement('div');header.className='driver-card-header';
+  header.innerHTML=`<div class="driver-name-label">${escHtml(member.name)}</div><div class="status-pill ${statusClass}">${statusLabel}</div>`;
+  card.appendChild(header);
+  const meta=document.createElement('div');meta.className='driver-card-meta';
+  meta.innerHTML=route?`<span>Stops: <strong>${doneCount}/${total}</strong></span><span>Left: <strong>${remaining}</strong></span>${remaining>0?`<span>ETA: <strong>~${remaining*5}min</strong></span>`:''}`:
+    '<span>No route assigned</span>';
+  card.appendChild(meta);
+  const list=document.createElement('div');list.className='driver-stop-list';
+  if(!stopList.length){list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0;font-family:\'Space Mono\',monospace;text-transform:uppercase;letter-spacing:.08em">No stops</div>';}
+  else{
+    let dotInserted=false;
+    stopList.forEach((stop,idx)=>{
+      if(!dotInserted&&stop.status==='pending'&&idx>0){const dr=document.createElement('div');dr.className='driver-dot-row';dr.innerHTML='<div class="driver-dot"></div><span>driver here</span>';list.appendChild(dr);dotInserted=true;}
+      const isNext=idx===nextIdx,isDone=stop.status==='done';
+      const row=document.createElement('div');row.className=`driver-stop-row ${isDone?'done':isNext?'next':'future'}`;
+      row.innerHTML=`<div class="dsr-num">${String(idx+1).padStart(2,'0')}</div><div class="dsr-addr">${escHtml(stop.address)}</div><div class="dsr-badge">${isDone?'✓':isNext?'→':''}</div>`;
+      list.appendChild(row);
+    });
+    if(!dotInserted&&doneCount===0&&total>0){const dr=document.createElement('div');dr.className='driver-dot-row';dr.style.paddingBottom='4px';dr.innerHTML='<div class="driver-dot"></div><span>start</span>';list.insertBefore(dr,list.firstChild);}
+    if(!dotInserted&&doneCount===total&&total>0){const dr=document.createElement('div');dr.className='driver-dot-row';dr.innerHTML='<div class="driver-dot"></div><span>all done</span>';list.appendChild(dr);}
+  }
+  card.appendChild(list);
+  const footer=document.createElement('div');footer.className='driver-card-footer';
+  footer.innerHTML=`<button class="btn btn-ghost btn-sm" style="flex:1">⬡ Assign Route</button>`;
+  footer.querySelector('button').onclick=()=>{openAssignModalForDriver(member);};
+  card.appendChild(footer);
+  return card;
+}
+async function openAssignModalForDriver(member){
+  if(!stops.length){showToast('Scan stops first, then assign','info');switchDispTab('scanner');return;}
+  document.getElementById('assignDriverSelect').innerHTML=`<option value="${member.id}" selected>${escHtml(member.name)}</option>`;
+  document.getElementById('assignPreviewInfo').textContent=`${stops.length} stop${stops.length>1?'s':''}`;
+  document.getElementById('assignError').textContent='';
+  document.getElementById('assignModal').classList.add('open');
+}
+
+/* DRIVER SCREEN */
+let driverRouteStops=[],driverRouteId=null,driverPollRoute=null;
+let driverScanning=false,driverQrScanner=null,driverStops=[];
+let locationPingTimer=null;
+
+function initDriverScreen(){
+  document.getElementById('driverGreeting').textContent=session.name.toUpperCase();
+  document.getElementById('driverTeamLabel').textContent=session.teamName?'Team: '+session.teamName:'Solo';
+  pollDriverRoute();
+  driverPollRoute=setInterval(pollDriverRoute,15000);
+  startLocationPing();
+}
+
+async function pollDriverRoute(){
+  if(!session||!session.teamId)return;
+  try{
+    const allDrivers=await db('GET','drivers',null,`?team_id=eq.${session.teamId}`);
+    const drv=(allDrivers||[]).find(d=>d.name===session.name);
+    if(!drv)return;
+    const routes=await db('GET','routes',null,`?driver_id=eq.${drv.id}&status=in.(pending,active)&order=created_at.desc&limit=1`);
+    if(!routes||!routes.length)return;
+    const route=routes[0];
+    if(route.id===driverRouteId)return;
+    const stopsData=await db('GET','stops',null,`?route_id=eq.${route.id}&order=position.asc`);
+    driverRouteId=route.id;driverRouteStops=stopsData||[];
+    if(route.status==='pending')await db('PATCH',`routes?id=eq.${route.id}`,{status:'active'});
+    renderDriveMode();showToast('New route received!','success');
+  }catch{}
+}
+
+function renderDriveMode(){
+  const done=driverRouteStops.filter(s=>s.status==='done').length;
+  const total=driverRouteStops.length,remaining=total-done;
+  document.getElementById('driveStopsCounter').textContent=`${done} / ${total} done`;
+  document.getElementById('driveEta').textContent=remaining>0?`~${remaining*5} min remaining`:'All stops complete 🎉';
+  document.getElementById('waitingRoute').style.display='none';
+  document.getElementById('activeRouteContent').style.display='flex';
+  const list=document.getElementById('driveStopList');list.innerHTML='';
+  const nextIdx=driverRouteStops.findIndex(s=>s.status==='pending');
+  driverRouteStops.forEach((stop,idx)=>{
+    const isDone=stop.status==='done',isNext=idx===nextIdx;
+    const item=document.createElement('div');item.className=`drive-stop-item ${isDone?'done':isNext?'next':''}`;
+    item.innerHTML=`<div class="dsi-num">${String(idx+1).padStart(2,'0')}</div><div class="dsi-addr">${escHtml(stop.address)}</div>${isDone?'<div class="dsi-done-tick">✓</div>':isNext?`<button class="dsi-done-btn">Done</button>`:''}`;
+    if(isNext)item.querySelector('.dsi-done-btn').onclick=()=>markStopDone(stop.id,idx);
+    list.appendChild(item);
   });
 }
 
-async function geocode(address) {
-  const q = extractAddress(address);
-  // Add "Berlin" as region hint so short street names resolve correctly
-  const query = /berlin/i.test(q) ? q : q + ', Berlin';
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-  const res  = await fetch(url, { headers: { 'Accept-Language': 'de,en' } });
-  const data = await res.json();
-  if (!data.length) {
-    // Retry without the Berlin hint
-    const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
-    const res2  = await fetch(url2, { headers: { 'Accept-Language': 'de,en' } });
-    const data2 = await res2.json();
-    if (!data2.length) return null;
-    return { lat: parseFloat(data2[0].lat), lon: parseFloat(data2[0].lon) };
-  }
-  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+async function markStopDone(stopId,idx){
+  try{
+    await db('PATCH',`stops?id=eq.${stopId}`,{status:'done'});
+    driverRouteStops[idx].status='done';
+    if(driverRouteStops.every(s=>s.status==='done')){await db('PATCH',`routes?id=eq.${driverRouteId}`,{status:'complete'});showToast('All stops complete! 🎉','success');}
+    renderDriveMode();
+  }catch{showToast('Error marking done','error');}
 }
 
-
-
-// ── Optimization: greedy seed + 2-opt improvement ──────────────────────────
-//
-// WHY GREEDY ALONE FAILS:
-// Pure nearest-neighbor commits greedily to each step without looking ahead.
-// When stops form a tight cluster near the origin plus distant outliers, it
-// gets distracted by an outlier early, then has to backtrack through the
-// cluster — crossing its own path. Example: A→B(far)→C→D→E→F instead of
-// the correct A→E→D→C→B→F (clear cluster first, then move outward).
-//
-// THE FIX — 2-opt post-processing:
-// After the greedy seed, repeatedly scan all pairs of edges. If swapping
-// two edges (reversing the segment between them) shortens the total driving
-// duration, make the swap. Repeat until no improvement is found. This
-// untangles route crossings and fixes the backtracking pattern.
-// Applied to real OSRM driving durations (not straight-line), it reliably
-// finds the correct outward-sweep order.
-
-// ── Optimization: step-by-step nearest-neighbour via individual OSRM calls ──
-//
-// Exactly as described:
-// 1. Current location is added as the starting point.
-// 2. From current position, get the driving distance (km) to every unvisited stop.
-// 3. The stop with the lowest km value becomes the next stop.
-// 4. Repeat from that stop until all stops are visited.
-// 5. Current location is appended again as the final return point (for display).
-//
-// Uses individual OSRM /route calls so each distance is a real driving km value.
-// No matrix, no 2-opt, no index mapping — impossible to produce wrong ordering.
-
-async function getDrivingKm(from, to) {
-  // Returns driving distance in km between two {lat, lon} points via OSRM.
-  const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
-  const res  = await fetch(url);
-  const data = await res.json();
-  if (data.code !== 'Ok' || !data.routes.length) return Infinity;
-
-  return data.routes[0].distance / 1000; // metres → km
-}
-
-async function optimizeRoute() {
-  if (stops.length < 2) return;
-  if (isFileOrigin) {
-    showToast('Optimization blocked on file:// — host it first', 'error');
-    return;
-  }
-  const btn = document.getElementById('optimizeBtn');
-  btn.disabled = true;
-
-  try {
-    // Step 1: get current location
-    btn.textContent = '⟳ Locating you…';
-    let origin;
-    try {
-      origin = await getUserLocation();
-    } catch {
-      showToast('Location access denied — needed for optimization', 'error');
-      btn.textContent = '⟳ Optimize Order'; btn.disabled = false;
-      return;
-    }
-
-    // Step 2: geocode all stops
-    const coords = [];
-    const failed = [];
-    for (let i = 0; i < stops.length; i++) {
-      btn.textContent = `⟳ Geocoding ${i + 1}/${stops.length}…`;
-      const c = await geocode(stops[i].text);
-      coords.push(c);
-      if (!c) failed.push(i);
-      await new Promise(r => setTimeout(r, 300));
-    }
-    const resolved = coords.map(c => c || origin);
-
-    // Step 3: nearest-neighbour — from current position, check driving km
-    // to every unvisited stop, pick the closest, repeat until all visited.
-    const unvisited  = stops.map((_, i) => i);
-    const orderedIdx = [];
-    let currentPos   = origin;
-    let stepNum      = 0;
-
-    while (unvisited.length > 0) {
-      stepNum++;
-      let bestIdx = -1, bestKm = Infinity, bestPos = 0;
-
-      for (let p = 0; p < unvisited.length; p++) {
-        const stopIdx = unvisited[p];
-        btn.textContent = `⟳ Step ${stepNum}: checking ${p + 1}/${unvisited.length}…`;
-        const km = await getDrivingKm(currentPos, resolved[stopIdx]);
-        if (km < bestKm) {
-          bestKm = km; bestIdx = stopIdx; bestPos = p;
-        }
-      }
-
-      orderedIdx.push(bestIdx);
-      unvisited.splice(bestPos, 1);
-      currentPos = resolved[bestIdx];
-    }
-
-    // Step 4: reorder stops to match optimized order
-    const oldStops = stops.slice();
-    stops = orderedIdx.map(i => oldStops[i]);
-    updateUI();
-
-    showToast(failed.length
-      ? `Optimized — ${failed.length} stop(s) not geocoded`
-      : 'Route optimized ✓', failed.length ? 'info' : 'success');
-
-  } catch (err) {
-    console.error(err);
-    showToast('Optimization failed — check connection', 'error');
-  }
-
-  btn.textContent = '⟳ Optimize Order';
-  btn.disabled = false;
-}
-
-/* ══════════════════════════════════════
-   NAVIGATION
-══════════════════════════════════════ */
-function toggleNav() {
-  if (!stops.length) return;
-  navOpen = !navOpen;
-  document.getElementById('navOptions').classList.toggle('open', navOpen);
-  document.getElementById('routeBtn').textContent = navOpen ? 'Cancel ↑' : 'Navigate →';
-}
-
-function encodeStop(s) {
-  return encodeURIComponent(extractAddress(s.text));
-}
-
-// Reverse-geocode a {lat,lon} to a street address string via Nominatim
-async function reverseGeocode(lat, lon) {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
-    const res  = await fetch(url, { headers: { 'Accept-Language': 'de,en' } });
-    const data = await res.json();
-    if (data && data.address) {
-      const a = data.address;
-      // Build a clean "Street Number, City" string
-      const road   = a.road || a.pedestrian || a.footway || '';
-      const number = a.house_number || '';
-      const city   = a.city || a.town || a.village || a.suburb || '';
-      const parts  = [road + (number ? ' ' + number : ''), city].filter(Boolean);
-      return parts.join(', ') || data.display_name;
-    }
-  } catch {}
-  return null;
-}
-
-async function openRoute(app) {
-  if (!stops.length) return;
-
-  // ── Locate the driver and get a return address ──────────────────────────
-  const btn = document.getElementById('routeBtn');
-  const origText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Locating…';
-
-  let returnAddress = null;
-  try {
-    const pos = await new Promise((resolve, reject) =>
-      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
-    );
-    const { latitude: lat, longitude: lon } = pos.coords;
-    showToast('Got location, building route…', 'info');
-    returnAddress = await reverseGeocode(lat, lon);
-  } catch {
-    // Location denied or timed out — navigate without return stop
-    showToast('Location unavailable — no return stop added', 'info');
-  }
-
-  btn.disabled = false;
-  btn.textContent = origText;
-
-  // ── Build the stop list: all stops + return address appended ────────────
-  const enc = stops.map(encodeStop);
-  if (returnAddress) enc.push(encodeURIComponent(returnAddress));
-
+async function openDriveRoute(app){
+  const pending=driverRouteStops.filter(s=>s.status==='pending');
+  if(!pending.length){showToast('All stops done','info');return;}
+  const enc=pending.map(s=>encodeURIComponent(s.address));
   let url;
-  if (app === 'google') {
-    if (enc.length === 1) {
-      url = `https://www.google.com/maps/dir/?api=1&destination=${enc[0]}`;
-    } else {
-      // Last encoded entry is the return/destination; everything before is waypoints
-      url = `https://www.google.com/maps/dir/?api=1&destination=${enc[enc.length-1]}&waypoints=${enc.slice(0,-1).join('|')}&travelmode=driving`;
-    }
-  } else if (app === 'apple') {
-    // Apple Maps only supports one destination — send the return address or last stop
-    url = `maps://maps.apple.com/?daddr=${enc[enc.length-1]}&dirflg=d`;
-    if (stops.length > 1) showToast('Apple Maps: routing to return point', 'info');
-  } else if (app === 'waze') {
-    // Waze single-destination — first delivery stop
-    url = `https://waze.com/ul?q=${enc[0]}&navigate=yes`;
-    if (stops.length > 1) showToast('Waze: opening first stop', 'info');
-  }
-
-  window.open(url, '_blank');
+  if(app==='google'){url=enc.length===1?`https://www.google.com/maps/dir/?api=1&destination=${enc[0]}`:`https://www.google.com/maps/dir/?api=1&destination=${enc[enc.length-1]}&waypoints=${enc.slice(0,-1).join('|')}&travelmode=driving`;}
+  else if(app==='apple'){url=`maps://maps.apple.com/?daddr=${enc[enc.length-1]}&dirflg=d`;}
+  else if(app==='waze'){url=`https://waze.com/ul?q=${enc[0]}&navigate=yes`;}
+  window.open(url,'_blank');
 }
 
-/* ══════════════════════════════════════
-   SHARE LINK
-══════════════════════════════════════ */
-function buildShareUrl() {
-  const data = stops.map(s => ({ t: s.text, k: s.type }));
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  return location.href.split('#')[0] + '#stops=' + encoded;
+function switchDriverTab(tab){
+  ['drive','scan'].forEach(t=>{document.getElementById('driver-nav-'+t).classList.toggle('active',t===tab);});
+  document.getElementById('drivePaneContent').classList.toggle('active',tab==='drive');
+  document.getElementById('driverScanPane').classList.toggle('active',tab==='scan');
+  if(tab!=='scan'&&driverScanning)stopDriverScanner();
 }
 
-function openShareModal() {
-  if (!stops.length) return;
-  document.getElementById('shareUrl').textContent = buildShareUrl();
-  document.getElementById('shareModal').classList.add('open');
+async function toggleDriverScanner(){driverScanning?stopDriverScanner():await startDriverScanner();}
+async function startDriverScanner(){
+  document.getElementById('driverScannerWrap').classList.add('active');
+  document.getElementById('driverIdleState').style.display='none';
+  document.getElementById('driverScanBtn').textContent='◼ Stop Scan';
+  try{
+    driverQrScanner=new Html5Qrcode('qr-reader-driver');
+    await driverQrScanner.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220},aspectRatio:1.0},
+      decoded=>{const now=Date.now();if(decoded!==lastScanned||now-lastScanTime>3000){lastScanned=decoded;lastScanTime=now;
+        if(addDriverStop(decoded,'QR')){const f=document.getElementById('driverFlash'),s=document.getElementById('driverScanStatus');f.style.opacity='.55';s.style.color='#10B981';s.textContent='Added ✓';setTimeout(()=>{f.style.opacity='0';s.style.color='';s.textContent='Scanning…';},1500);}}},()=>{});
+    driverScanning=true;
+  }catch(e){document.getElementById('driverScannerWrap').classList.remove('active');document.getElementById('driverIdleState').style.display='flex';document.getElementById('driverScanBtn').textContent='⬡ Scan QR';showToast('Camera error','error');}
 }
-function closeShareModal() {
-  document.getElementById('shareModal').classList.remove('open');
+async function stopDriverScanner(){
+  driverScanning=false;
+  if(driverQrScanner){try{await driverQrScanner.stop();driverQrScanner.clear();}catch(_){}driverQrScanner=null;}
+  document.getElementById('driverScannerWrap').classList.remove('active');
+  document.getElementById('driverIdleState').style.display='flex';
+  document.getElementById('driverScanBtn').textContent='⬡ Scan QR';
 }
-function closeShareOnBackdrop(e) {
-  if (e.target === document.getElementById('shareModal')) closeShareModal();
+function toggleDriverManual(){const w=document.getElementById('driverManualWrap');const o=w.classList.toggle('open');if(o)document.getElementById('driverAddrInput').focus();}
+function addDriverManual(){const inp=document.getElementById('driverAddrInput');const v=inp.value.trim();if(!v)return;if(addDriverStop(v,'TEXT')){inp.value='';}}
+document.getElementById('driverAddrInput').addEventListener('keydown',e=>{if(e.key==='Enter')addDriverManual();});
+function addDriverStop(text,type){
+  const norm=extractAddress(text.trim());if(!norm)return false;
+  if(driverStops.find(s=>s.text.toLowerCase()===norm.toLowerCase())){showToast('Already in list','error');return false;}
+  driverStops.push({text:norm,type});renderDriverScanList();return true;
 }
-async function copyShareLink() {
-  const url = buildShareUrl();
-  try {
-    await navigator.clipboard.writeText(url);
-    showToast('Link copied ✓', 'success');
-    closeShareModal();
-  } catch {
-    const el = document.getElementById('shareUrl');
-    const range = document.createRange();
-    range.selectNode(el);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    showToast('Select & copy the link above', 'info');
-  }
+function clearDriverStops(){driverStops=[];renderDriverScanList();}
+function renderDriverScanList(){
+  const list=document.getElementById('driverStopsList');if(!list)return;
+  document.getElementById('driverStopsHeader').style.display=driverStops.length?'flex':'none';
+  document.getElementById('driverSendRow').style.display=driverStops.length?'block':'none';
+  list.innerHTML='';
+  driverStops.forEach((s,i)=>{
+    const div=document.createElement('div');div.className='stop-item';
+    const label=s.text.length>50?s.text.slice(0,50)+'…':s.text;
+    div.innerHTML=`<div class="stop-num">${String(i+1).padStart(2,'0')}</div><div class="stop-text">${escHtml(label)}</div><div class="stop-type">${s.type}</div><button class="del-btn">×</button>`;
+    div.querySelector('.del-btn').onclick=()=>{driverStops.splice(i,1);renderDriverScanList();};
+    list.appendChild(div);
+  });
 }
-
-/* ══════════════════════════════════════
-   LOAD FROM URL HASH
-══════════════════════════════════════ */
-function loadFromHash() {
-  try {
-    const hash = location.hash;
-    if (!hash.startsWith('#stops=')) return;
-    const encoded = hash.slice('#stops='.length);
-    const data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-    if (Array.isArray(data) && data.length) {
-      data.forEach(d => { if (d.t) stops.push({ text: d.t, type: d.k || 'LINK' }); });
-      showToast(`Loaded ${stops.length} stop${stops.length > 1 ? 's' : ''} from link`, 'success');
-    }
-  } catch {}
-}
-
-/* ══════════════════════════════════════
-   PWA (only register SW when hosted)
-══════════════════════════════════════ */
-if (!isFileOrigin && 'serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE='routescan-v1';
-    self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./',]))));
-    self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
-  `;
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+function sendDriverRoute(){
+  if(!driverStops.length)return;
+  driverRouteStops=driverStops.map((s,i)=>({id:'local-'+i,address:s.text,status:'pending',position:i+1}));
+  driverRouteId='local';driverStops=[];renderDriverScanList();
+  renderDriveMode();switchDriverTab('drive');showToast('Route loaded ✓','success');
 }
 
-/* ── init ── */
+/* LOCATION PING */
+function startLocationPing(){clearInterval(locationPingTimer);sendLocation();locationPingTimer=setInterval(sendLocation,30000);}
+async function sendLocation(){
+  if(!session||!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{await db('POST','locations',{driver_id:session.id,lat:pos.coords.latitude,lon:pos.coords.longitude});}catch{}
+  },()=>{},{timeout:8000,maximumAge:20000});
+}
+
+/* MODALS */
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+/* INIT */
 loadFromHash();
-updateUI();
+routeBySession();
 </script>
 </body>
 </html>
