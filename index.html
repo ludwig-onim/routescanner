@@ -834,7 +834,7 @@ async function assignToDriver(){
     if(!driverRec){const[d]=await db('POST','drivers',{name:memberName,team_id:session.teamId,clocked_in:true});driverRec=d;}
     const oldRoutes=await db('GET','routes',null,`?driver_id=eq.${driverRec.id}&status=in.(pending,active)`);
     for(const r of oldRoutes||[])await db('PATCH',`routes?id=eq.${r.id}`,{status:'replaced'});
-    const[route]=await db('POST','routes',{driver_id:driverRec.id,member_id:memberId,team_id:session.teamId,status:'pending'});
+    const[route]=await db('POST','routes',{driver_id:driverRec.id,team_id:session.teamId,status:'pending'});
     await db('POST','stops',stops.map((s,i)=>({route_id:route.id,team_id:session.teamId,position:i+1,address:s.text,status:'pending'})));
     closeModal('assignModal');showToast('Route assigned ✓','success');loadDriversPane();
   }catch(e){errEl.textContent='Error: '+e.message;}
