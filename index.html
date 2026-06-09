@@ -751,6 +751,34 @@ async function getDrivingKm(from,to){
   const res=await fetch(url);const data=await res.json();
   if(data.code!=='Ok'||!data.routes.length)return Infinity;return data.routes[0].distance/1000;
 }
+async function getDrivingSeconds(from,to){
+  const url=`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
+  try{const res=await fetch(url);const data=await res.json();
+  if(data.code!=='Ok'||!data.routes.length)return 5*60;return data.routes[0].duration;}
+  catch{return 5*60;}
+}
+// Geocode all stops, sum OSRM driving durations + 5 min per stop
+// Returns total seconds for the whole route
+async function calcRouteEtaSeconds(stopList){
+  const coords=[];
+  for(const s of stopList){
+    const c=await geocode(s.text);
+    coords.push(c);
+    await new Promise(r=>setTimeout(r,200));
+  }
+  let totalSeconds=0;
+  const valid=coords.map((c,i)=>c?{...c,idx:i}:null);
+  // 5 min delivery time per stop regardless
+  totalSeconds+=stopList.length*5*60;
+  // Driving time between consecutive geocoded stops
+  for(let i=0;i<valid.length-1;i++){
+    if(valid[i]&&valid[i+1]){
+      const secs=await getDrivingSeconds(valid[i],valid[i+1]);
+      totalSeconds+=secs;
+    }
+  }
+  return Math.round(totalSeconds);
+}
 async function optimizeRoute(){
   if(stops.length<2)return;
   const btn=document.getElementById('optimizeBtn');btn.disabled=true;
@@ -834,7 +862,11 @@ async function assignToDriver(){
     if(!driverRec){const[d]=await db('POST','drivers',{name:memberName,team_id:session.teamId,clocked_in:true});driverRec=d;}
     const oldRoutes=await db('GET','routes',null,`?driver_id=eq.${driverRec.id}&status=in.(pending,active)`);
     for(const r of oldRoutes||[])await db('PATCH',`routes?id=eq.${r.id}`,{status:'replaced'});
-    const[route]=await db('POST','routes',{driver_id:driverRec.id,team_id:session.teamId,status:'pending'});
+    // Calculate ETA before saving so we can store it on the route
+    showToast('Calculating route time…','info');
+    let etaSecs=0;
+    try{etaSecs=await calcRouteEtaSeconds(stops);}catch{etaSecs=stops.length*5*60;}
+    const[route]=await db('POST','routes',{driver_id:driverRec.id,team_id:session.teamId,status:'pending',eta_seconds:etaSecs});
     await db('POST','stops',stops.map((s,i)=>({route_id:route.id,team_id:session.teamId,position:i+1,address:s.text,status:'pending'})));
     closeModal('assignModal');showToast('Route assigned ✓','success');loadDriversPane();
   }catch(e){errEl.textContent='Error: '+e.message;}
@@ -875,7 +907,20 @@ function buildDriverCard(member,route,stopList){
   header.innerHTML=`<div class="driver-name-label">${escHtml(member.name)}</div><div class="status-pill ${statusClass}">${statusLabel}</div>`;
   card.appendChild(header);
   const meta=document.createElement('div');meta.className='driver-card-meta';
-  meta.innerHTML=route?`<span>Stops: <strong>${doneCount}/${total}</strong></span><span>Left: <strong>${remaining}</strong></span>${remaining>0?`<span>ETA: <strong>~${remaining*5}min</strong></span>`:''}`:
+  // Work out arrival time from stored eta_seconds, adjusted for stops already done
+  let etaStr='';
+  if(route&&route.eta_seconds&&remaining>0){
+    const assignedAt=new Date(route.created_at).getTime();
+    // Proportion of route remaining based on stops left
+    const fractionLeft=total>0?remaining/total:1;
+    const secsLeft=Math.round(route.eta_seconds*fractionLeft);
+    const arrivalMs=Date.now()+secsLeft*1000;
+    const arr=new Date(arrivalMs);
+    const hh=arr.getHours().toString().padStart(2,'0');
+    const mm=arr.getMinutes().toString().padStart(2,'0');
+    etaStr=`<span>Back by: <strong>~${hh}:${mm}</strong></span>`;
+  }
+  meta.innerHTML=route?`<span>Stops: <strong>${doneCount}/${total}</strong></span><span>Left: <strong>${remaining}</strong></span>${etaStr}`:
     '<span>No route assigned</span>';
   card.appendChild(meta);
   const list=document.createElement('div');list.className='driver-stop-list';
@@ -908,7 +953,7 @@ async function openAssignModalForDriver(member){
 }
 
 /* DRIVER SCREEN */
-let driverRouteStops=[],driverRouteId=null,driverPollRoute=null;
+let driverRouteStops=[],driverRouteId=null,driverRouteEtaSecs=0,driverPollRoute=null;
 let driverScanning=false,driverQrScanner=null,driverStops=[];
 let locationPingTimer=null;
 
@@ -932,6 +977,7 @@ async function pollDriverRoute(){
     if(route.id===driverRouteId)return;
     const stopsData=await db('GET','stops',null,`?route_id=eq.${route.id}&order=position.asc`);
     driverRouteId=route.id;driverRouteStops=stopsData||[];
+    driverRouteEtaSecs=route.eta_seconds||0;
     if(route.status==='pending')await db('PATCH',`routes?id=eq.${route.id}`,{status:'active'});
     renderDriveMode();showToast('New route received!','success');
   }catch{}
@@ -941,7 +987,20 @@ function renderDriveMode(){
   const done=driverRouteStops.filter(s=>s.status==='done').length;
   const total=driverRouteStops.length,remaining=total-done;
   document.getElementById('driveStopsCounter').textContent=`${done} / ${total} done`;
-  document.getElementById('driveEta').textContent=remaining>0?`~${remaining*5} min remaining`:'All stops complete 🎉';
+  // Show real clock arrival time if we have eta_seconds stored
+  let driveEtaText='All stops complete 🎉';
+  if(remaining>0){
+    // Try to get eta from the stored route; fall back to 5 min per stop
+    const etaSecs=driverRouteEtaSecs||remaining*5*60;
+    const fractionLeft=total>0?remaining/total:1;
+    const secsLeft=Math.round(etaSecs*fractionLeft);
+    const arr=new Date(Date.now()+secsLeft*1000);
+    const hh=arr.getHours().toString().padStart(2,'0');
+    const mm=arr.getMinutes().toString().padStart(2,'0');
+    const minsLeft=Math.round(secsLeft/60);
+    driveEtaText=`Back by ~${hh}:${mm} · ${minsLeft} min left`;
+  }
+  document.getElementById('driveEta').textContent=driveEtaText;
   document.getElementById('waitingRoute').style.display='none';
   document.getElementById('activeRouteContent').style.display='flex';
   const list=document.getElementById('driveStopList');list.innerHTML='';
