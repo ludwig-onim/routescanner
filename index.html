@@ -75,6 +75,8 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
 .disp-tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
 .disp-pane{display:none;flex-direction:column;flex:1}
 .disp-pane.active{display:flex}
+/* Scanner pane needs bottom padding so content clears sticky route-bar + nav */
+#pane-scanner{padding-bottom:180px}
 
 /* SCANNER */
 .scanner-wrap{position:relative;margin:16px 20px 0;border-radius:var(--radius);overflow:hidden;background:#000;aspect-ratio:1/1;border:1.5px solid var(--border);display:none}
@@ -617,9 +619,27 @@ function addStop(text,type){
 }
 function removeStop(i){stops.splice(i,1);updateUI();}
 function moveStop(i,dir){const j=i+dir;if(j<0||j>=stops.length)return;[stops[i],stops[j]]=[stops[j],stops[i]];updateUI();}
-function clearAll(){if(!stops.length)return;if(confirm('Remove all stops?')){stops.length=0;updateUI();}}
+function clearAll(){if(!stops.length)return;if(confirm('Remove all stops?')){stops.length=0;clearPersistedStops();updateUI();}}
+
+function saveStops(){
+  // Persist dispatcher stop list across refreshes
+  // Cleared on: clearAll, successful navigation, route assigned/saved
+  try{localStorage.setItem('onim_stops',JSON.stringify(stops));}catch{}
+}
+function loadPersistedStops(){
+  try{
+    const raw=localStorage.getItem('onim_stops');
+    if(!raw)return;
+    const data=JSON.parse(raw);
+    if(Array.isArray(data)&&data.length){stops=data;}
+  }catch{}
+}
+function clearPersistedStops(){
+  try{localStorage.removeItem('onim_stops');}catch{}
+}
 
 function updateUI(){
+  saveStops();
   const n=stops.length;
   const el=id=>document.getElementById(id);
   if(el('countDisplay'))el('countDisplay').textContent=n;
@@ -808,16 +828,88 @@ async function reverseGeocode(lat,lon){
 function encodeStop(s){return encodeURIComponent(extractAddress(s.text));}
 async function openRoute(app){
   if(!stops.length)return;
-  const btn=document.getElementById('routeBtn');btn.disabled=true;const orig=btn.textContent;btn.textContent='Locating…';
+
+  const btn=document.getElementById('routeBtn');
+  const navOpts=document.getElementById('navOptions');
+
+  // ── Show loading state ────────────────────────────────────────────────────
+  btn.disabled=true;
+  // Dim the three nav buttons so it's clear something is happening
+  navOpts.querySelectorAll('.btn').forEach(b=>{b.disabled=true;b.style.opacity='.5';});
+
+  // Animated loading label on the main button
+  let dotCount=0;
+  const loadingInterval=setInterval(()=>{
+    dotCount=(dotCount+1)%4;
+    btn.textContent='Locating'+'…'.slice(0,dotCount||1);
+  },400);
+  btn.textContent='Locating…';
+
   let returnAddr=null;
-  try{const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000}));returnAddr=await reverseGeocode(pos.coords.latitude,pos.coords.longitude);}catch{showToast('Location unavailable','info');}
-  btn.disabled=false;btn.textContent=orig;
-  const enc=stops.map(encodeStop);if(returnAddr)enc.push(encodeURIComponent(returnAddr));
-  let url;
-  if(app==='google'){url=enc.length===1?`https://www.google.com/maps/dir/?api=1&destination=${enc[0]}`:`https://www.google.com/maps/dir/?api=1&destination=${enc[enc.length-1]}&waypoints=${enc.slice(0,-1).join('|')}&travelmode=driving`;}
-  else if(app==='apple'){url=`maps://maps.apple.com/?daddr=${enc[enc.length-1]}&dirflg=d`;}
-  else if(app==='waze'){url=`https://waze.com/ul?q=${enc[0]}&navigate=yes`;}
-  window.open(url,'_blank');
+
+  // ── Get location ─────────────────────────────────────────────────────────
+  try{
+    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:10000,maximumAge:30000}));
+    btn.textContent='Reverse geocoding…';
+    returnAddr=await reverseGeocode(pos.coords.latitude,pos.coords.longitude);
+  } catch(e){
+    // Location failed — explain why and whether we can still navigate
+    clearInterval(loadingInterval);
+    btn.disabled=false;
+    navOpts.querySelectorAll('.btn').forEach(b=>{b.disabled=false;b.style.opacity='';});
+    btn.textContent='Navigate →';
+
+    let reason='Location unavailable';
+    if(e&&e.code===1) reason='Location permission denied — allow it in browser settings';
+    else if(e&&e.code===2) reason='Location unavailable — check GPS or connection';
+    else if(e&&e.code===3) reason='Location timed out — navigating without return stop';
+
+    // For permission denied we stop entirely — can't navigate safely
+    if(e&&e.code===1){
+      showToast(reason,'error');
+      return;
+    }
+    // For other errors: warn but continue without return stop
+    showToast(reason+' — navigating without return stop','info');
+  }
+
+  clearInterval(loadingInterval);
+
+  // ── Build URL ─────────────────────────────────────────────────────────────
+  btn.textContent='Opening Maps…';
+  const enc=stops.map(encodeStop);
+  if(returnAddr) enc.push(encodeURIComponent(returnAddr));
+
+  let url=null;
+  if(app==='google'){
+    url=enc.length===1
+      ?`https://www.google.com/maps/dir/?api=1&destination=${enc[0]}`
+      :`https://www.google.com/maps/dir/?api=1&destination=${enc[enc.length-1]}&waypoints=${enc.slice(0,-1).join('|')}&travelmode=driving`;
+  } else if(app==='apple'){
+    url=`maps://maps.apple.com/?daddr=${enc[enc.length-1]}&dirflg=d`;
+  } else if(app==='waze'){
+    url=`https://waze.com/ul?q=${enc[0]}&navigate=yes`;
+  }
+
+  // ── Reset UI ──────────────────────────────────────────────────────────────
+  btn.disabled=false;
+  navOpts.querySelectorAll('.btn').forEach(b=>{b.disabled=false;b.style.opacity='';});
+  btn.textContent='Navigate →';
+  navOpen=false;
+  navOpts.classList.remove('open');
+
+  if(!url){showToast('Could not build navigation URL','error');return;}
+
+  // ── Open Maps ─────────────────────────────────────────────────────────────
+  const newTab=window.open(url,'_blank');
+  if(!newTab){
+    // Popup blocked
+    showToast('Popup blocked — allow popups for this site','error');
+    return;
+  }
+
+  // Clear stops after successful launch
+  setTimeout(()=>{stops.length=0;clearPersistedStops();updateUI();},1000);
 }
 
 /* SHARE */
@@ -836,7 +928,7 @@ async function saveRouteToCloud(){
   try{
     const[route]=await db('POST','routes',{team_id:session.teamId||null,status:'saved'});
     await db('POST','stops',stops.map((s,i)=>({route_id:route.id,team_id:session.teamId||null,position:i+1,address:s.text,status:'pending'})));
-    showToast('Route saved ✓','success');
+    clearPersistedStops();showToast('Route saved ✓','success');
   }catch(e){showToast('Save failed: '+e.message,'error');}
 }
 async function openAssignModal(){
@@ -868,7 +960,7 @@ async function assignToDriver(){
     try{etaSecs=await calcRouteEtaSeconds(stops);}catch{etaSecs=stops.length*5*60;}
     const[route]=await db('POST','routes',{driver_id:driverRec.id,team_id:session.teamId,status:'pending',eta_seconds:etaSecs});
     await db('POST','stops',stops.map((s,i)=>({route_id:route.id,team_id:session.teamId,position:i+1,address:s.text,status:'pending'})));
-    closeModal('assignModal');showToast('Route assigned ✓','success');loadDriversPane();
+    closeModal('assignModal');clearPersistedStops();showToast('Route assigned ✓','success');loadDriversPane();
   }catch(e){errEl.textContent='Error: '+e.message;}
 }
 
@@ -1103,7 +1195,8 @@ async function sendLocation(){
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 /* INIT */
-loadFromHash();
+loadPersistedStops(); // restore stops from last session if any
+loadFromHash();       // URL hash overrides persisted stops if present
 routeBySession();
 </script>
 </body>
