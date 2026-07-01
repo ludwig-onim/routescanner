@@ -171,19 +171,59 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
 .driver-card-footer{padding:8px 14px;border-top:1.5px solid var(--border);display:flex;gap:8px;background:rgba(0,0,0,.1)}
 .no-drivers{text-align:center;padding:40px 20px;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
 /* MAP PANE */
-#pane-map{flex:1;display:none;flex-direction:column;min-height:0}
+#pane-map{flex:1;display:none;flex-direction:column;min-height:0;position:relative}
 #pane-map.active{display:flex}
 #dispMap{flex:1;min-height:0;z-index:1}
-.map-legend{padding:8px 14px;background:var(--surface);border-top:1.5px solid var(--border);display:flex;gap:14px;flex-wrap:wrap;flex-shrink:0}
-.map-legend-item{display:flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.map-refresh-row{padding:8px 14px;background:var(--surface);border-top:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.map-refresh-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-/* Override Leaflet popup to match theme */
-.leaflet-popup-content-wrapper{background:var(--card)!important;border:1.5px solid var(--border)!important;border-radius:8px!important;color:var(--text)!important;box-shadow:0 4px 20px rgba(0,0,0,.4)!important}
-.leaflet-popup-tip{background:var(--card)!important}
-.leaflet-popup-content{font-family:'DM Sans',sans-serif!important;font-size:13px!important;color:var(--text)!important;margin:10px 14px!important}
-.leaflet-popup-close-button{color:var(--muted)!important}
+
+/* Floating refresh button — top-right over the map */
+.map-fab{
+  position:absolute;top:12px;right:12px;z-index:20;
+  display:flex;align-items:center;gap:6px;
+  background:rgba(15,30,60,.85);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1.5px solid rgba(59,130,246,.4);
+  border-radius:99px;padding:8px 14px;
+  font-family:'Space Mono',monospace;font-size:10px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);
+  cursor:pointer;transition:all .2s;
+}
+.map-fab:hover{background:rgba(59,130,246,.2);border-color:var(--accent2);}
+.map-fab:active{transform:scale(.96);}
+.map-fab-dot{width:6px;height:6px;border-radius:50%;background:var(--success);flex-shrink:0;animation:dpulse 2s ease-in-out infinite}
+
+/* Floating legend — bottom-left */
+.map-legend{
+  position:absolute;bottom:70px;left:12px;z-index:20;
+  background:rgba(15,30,60,.85);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1.5px solid rgba(59,130,246,.3);
+  border-radius:10px;padding:8px 12px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.map-legend-item{display:flex;align-items:center;gap:7px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* Timestamp — bottom right floating */
+.map-timestamp{
+  position:absolute;bottom:70px;right:12px;z-index:20;
+  font-family:'Space Mono',monospace;font-size:9px;color:rgba(255,255,255,.4);
+  letter-spacing:.06em;
+}
+
+/* Leaflet chrome overrides */
+.leaflet-control-zoom{border:1.5px solid rgba(59,130,246,.3)!important;border-radius:8px!important;overflow:hidden!important}
+.leaflet-control-zoom a{background:rgba(15,30,60,.85)!important;backdrop-filter:blur(8px)!important;color:var(--text)!important;border-bottom:1px solid rgba(59,130,246,.2)!important;font-size:16px!important;line-height:28px!important;width:28px!important;height:28px!important}
+.leaflet-control-zoom a:hover{background:rgba(59,130,246,.25)!important}
+.leaflet-control-attribution{background:rgba(15,30,60,.7)!important;color:rgba(255,255,255,.3)!important;font-size:8px!important;backdrop-filter:blur(4px)!important}
+.leaflet-control-attribution a{color:rgba(255,255,255,.4)!important}
+.leaflet-popup-content-wrapper{background:rgba(15,30,60,.95)!important;border:1.5px solid rgba(59,130,246,.4)!important;border-radius:10px!important;color:var(--text)!important;box-shadow:0 8px 32px rgba(0,0,0,.6)!important;backdrop-filter:blur(12px)!important}
+.leaflet-popup-tip{background:rgba(15,30,60,.95)!important}
+.leaflet-popup-content{font-family:'DM Sans',sans-serif!important;font-size:13px!important;color:var(--text)!important;margin:10px 14px!important;line-height:1.5!important}
+.leaflet-popup-close-button{color:var(--muted)!important;font-size:16px!important;top:6px!important;right:8px!important}
+
+/* Pulsing current-location dot */
+@keyframes locPulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.6)}50%{box-shadow:0 0 0 10px rgba(59,130,246,0)}}
+.loc-dot{width:14px;height:14px;border-radius:50%;background:var(--accent);border:2.5px solid #fff;animation:locPulse 2s ease-in-out infinite}
 
 /* DRIVER SCREEN */
 #screen-driver{padding-top:0}
@@ -347,14 +387,18 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
   <!-- Map pane -->
   <div id="pane-map">
     <div id="dispMap"></div>
-    <div class="map-refresh-row">
-      <span class="map-refresh-label" id="mapLastUpdate">Not loaded yet</span>
-      <button class="btn btn-ghost btn-sm" onclick="refreshMap()">↺ Refresh</button>
-    </div>
+    <!-- Floating refresh button -->
+    <button class="map-fab" onclick="refreshMap()">
+      <div class="map-fab-dot"></div>↺ Refresh
+    </button>
+    <!-- Floating legend -->
     <div class="map-legend">
       <div class="map-legend-item"><div class="legend-dot" style="background:#3B82F6"></div>Stop</div>
       <div class="map-legend-item"><div class="legend-dot" style="background:#10B981"></div>Driver</div>
+      <div class="map-legend-item"><div class="legend-dot" style="background:var(--accent)"></div>You</div>
     </div>
+    <!-- Timestamp -->
+    <span class="map-timestamp" id="mapLastUpdate"></span>
   </div>
 
   <!-- Drivers pane -->
@@ -1249,110 +1293,193 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 let dispMap=null;
 let mapStopMarkers=[];
 let mapDriverMarkers=[];
+let mapLocMarker=null;
+let mapRouteLine=null;
 let mapRefreshTimer=null;
+// Cache geocoded coords to avoid re-requesting Nominatim on every refresh
+let mapStopCoordsCache={};  // address -> {lat,lon}
 
-function makeNumberedIcon(num,color){
-  // SVG pin with number inside — matches app color scheme
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
-    <path d="M16 0C9.37 0 4 5.37 4 12c0 9 12 28 12 28S28 21 28 12C28 5.37 22.63 0 16 0z" fill="${color}" stroke="rgba(0,0,0,.3)" stroke-width="1"/>
-    <circle cx="16" cy="12" r="9" fill="rgba(0,0,0,.2)"/>
-    <text x="16" y="17" text-anchor="middle" font-family="Space Mono,monospace" font-size="${num>9?'9':'11'}" font-weight="700" fill="#fff">${num}</text>
+/* ── Icon factories ── */
+function makeNumberedIcon(num){
+  // Minimal glassy numbered pin
+  const size=num>9?9:11;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38">
+    <defs>
+      <filter id="s" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,.5)"/>
+      </filter>
+    </defs>
+    <path d="M15 1C8.92 1 4 5.92 4 12c0 8.25 11 25 11 25S26 20.25 26 12C26 5.92 21.08 1 15 1z"
+      fill="#3B82F6" filter="url(#s)"/>
+    <circle cx="15" cy="12" r="8" fill="rgba(255,255,255,.15)"/>
+    <text x="15" y="16.5" text-anchor="middle" font-family="'Space Mono',monospace"
+      font-size="${size}" font-weight="700" fill="#fff">${num}</text>
   </svg>`;
+  return L.divIcon({html:svg,iconSize:[30,38],iconAnchor:[15,38],popupAnchor:[0,-38],className:''});
+}
+
+function makeDriverIcon(name){
+  const initial=name.charAt(0).toUpperCase();
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
+    <defs>
+      <filter id="ds" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,.5)"/>
+      </filter>
+    </defs>
+    <circle cx="17" cy="17" r="15" fill="#10B981" filter="url(#ds)"/>
+    <circle cx="17" cy="17" r="9" fill="rgba(255,255,255,.15)"/>
+    <text x="17" y="21.5" text-anchor="middle" font-family="'Space Mono',monospace"
+      font-size="11" font-weight="700" fill="#fff">${initial}</text>
+  </svg>`;
+  return L.divIcon({html:svg,iconSize:[34,34],iconAnchor:[17,34],popupAnchor:[0,-20],className:''});
+}
+
+function makeLocDotIcon(){
   return L.divIcon({
-    html: svg,
-    iconSize:[32,40],iconAnchor:[16,40],popupAnchor:[0,-40],
-    className:''
+    html:'<div class="loc-dot"></div>',
+    iconSize:[14,14],iconAnchor:[7,7],popupAnchor:[0,-10],className:''
   });
 }
 
-function makeDriverIcon(initial){
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
-    <circle cx="18" cy="18" r="16" fill="#10B981" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
-    <circle cx="18" cy="18" r="10" fill="rgba(0,0,0,.15)"/>
-    <text x="18" y="23" text-anchor="middle" font-family="Space Mono,monospace" font-size="12" font-weight="700" fill="#fff">${initial.toUpperCase()}</text>
-  </svg>`;
-  return L.divIcon({html:svg,iconSize:[36,36],iconAnchor:[18,18],popupAnchor:[0,-20],className:''});
+/* ── Fetch OSRM route geometry ── */
+async function fetchRouteGeometry(coords){
+  // coords: [{lat,lon},...] in order
+  if(coords.length<2) return null;
+  const waypoints=coords.map(c=>`${c.lon},${c.lat}`).join(';');
+  try{
+    const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`);
+    const data=await res.json();
+    if(data.code!=='Ok'||!data.routes.length) return null;
+    // GeoJSON coords are [lon,lat] — Leaflet wants [lat,lon]
+    return data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+  }catch{return null;}
 }
 
+/* ── Init map ── */
 async function initOrRefreshMap(){
-  // Init Leaflet map once
   if(!dispMap){
-    dispMap=L.map('dispMap',{zoomControl:true,attributionControl:true});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      maxZoom:19
+    dispMap=L.map('dispMap',{
+      zoomControl:true,
+      attributionControl:true,
+      preferCanvas:true
+    });
+
+    // Stadia Alidade Smooth Dark — black bg, white minimal streets, no clutter
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{
+      attribution:'© <a href="https://stadiamaps.com/">Stadia Maps</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://openstreetmap.org">OSM</a>',
+      maxZoom:20,
+      minZoom:3
     }).addTo(dispMap);
-    // Default view — Berlin
+
+    // Hide zoom control default position, reposition to avoid FAB
+    dispMap.zoomControl.setPosition('bottomright');
+
     dispMap.setView([52.4965,13.4145],13);
   }
-  // Force Leaflet to recalculate size (tab was hidden before)
-  setTimeout(()=>dispMap.invalidateSize(),50);
 
+  setTimeout(()=>dispMap.invalidateSize(),80);
   await refreshMap();
 
-  // Poll every 30s while map is open
   clearInterval(mapRefreshTimer);
   mapRefreshTimer=setInterval(refreshMap,30000);
 }
 
+/* ── Refresh all layers ── */
 async function refreshMap(){
-  if(!dispMap)return;
+  if(!dispMap) return;
   const allBounds=[];
 
-  // ── Clear existing markers ────────────────────────────────────────────────
+  // Clear markers and route line
   mapStopMarkers.forEach(m=>m.remove());
   mapDriverMarkers.forEach(m=>m.remove());
+  if(mapLocMarker){mapLocMarker.remove();mapLocMarker=null;}
+  if(mapRouteLine){mapRouteLine.remove();mapRouteLine=null;}
   mapStopMarkers=[];mapDriverMarkers=[];
 
-  // ── Stop pins: geocode current dispatcher stop list ───────────────────────
+  // ── Current location dot ─────────────────────────────────────────────────
+  try{
+    const pos=await new Promise((res,rej)=>
+      navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000,maximumAge:60000}));
+    const ll=[pos.coords.latitude,pos.coords.longitude];
+    mapLocMarker=L.marker(ll,{icon:makeLocDotIcon(),zIndexOffset:1000})
+      .addTo(dispMap).bindPopup('<strong>You</strong>');
+    allBounds.push(ll);
+  }catch{}
+
+  // ── Stop pins + geocode (use cache where possible) ───────────────────────
+  const stopCoords=[];
   for(let i=0;i<stops.length;i++){
     try{
-      const c=await geocode(stops[i].text);
-      if(!c)continue;
-      const isDone=false; // dispatcher view — all pending
-      const marker=L.marker([c.lat,c.lon],{icon:makeNumberedIcon(i+1,'#3B82F6')})
+      let c=mapStopCoordsCache[stops[i].text];
+      if(!c){
+        c=await geocode(stops[i].text);
+        if(c) mapStopCoordsCache[stops[i].text]=c;
+        await new Promise(r=>setTimeout(r,150));
+      }
+      if(!c){stopCoords.push(null);continue;}
+      stopCoords.push(c);
+      const marker=L.marker([c.lat,c.lon],{icon:makeNumberedIcon(i+1)})
         .addTo(dispMap)
-        .bindPopup(`<strong>#${i+1}</strong><br>${stops[i].text}`);
+        .bindPopup(`<strong style="font-family:'Space Mono',monospace">#${i+1}</strong><br>${stops[i].text}`);
       mapStopMarkers.push(marker);
       allBounds.push([c.lat,c.lon]);
-      await new Promise(r=>setTimeout(r,150)); // Nominatim rate limit
-    }catch{}
+    }catch{stopCoords.push(null);}
   }
 
-  // ── Driver pins: latest location per driver from Supabase ─────────────────
+  // ── Route polyline via OSRM geometry ─────────────────────────────────────
+  const validCoords=stopCoords.filter(Boolean);
+  if(validCoords.length>=2){
+    const routePoints=await fetchRouteGeometry(validCoords);
+    if(routePoints){
+      // Outer glow line
+      L.polyline(routePoints,{
+        color:'rgba(59,130,246,.2)',weight:8,lineCap:'round',lineJoin:'round'
+      }).addTo(dispMap);
+      // Main line
+      mapRouteLine=L.polyline(routePoints,{
+        color:'#3B82F6',weight:3.5,lineCap:'round',lineJoin:'round',
+        dashArray:null
+      }).addTo(dispMap);
+    }
+  }
+
+  // ── Driver pins ───────────────────────────────────────────────────────────
   if(session&&session.teamId){
     try{
       const members=await db('GET','members',null,`?team_id=eq.${session.teamId}&role=eq.driver`);
+      const allDrivers=await db('GET','drivers',null,`?team_id=eq.${session.teamId}`);
       for(const m of members||[]){
-        // Match member name to driver record to get driver_id
-        const allDrivers=await db('GET','drivers',null,`?team_id=eq.${session.teamId}`);
         const drv=(allDrivers||[]).find(d=>d.name===m.name);
-        if(!drv)continue;
+        if(!drv) continue;
         const locs=await db('GET','locations',null,`?driver_id=eq.${drv.id}&order=recorded_at.desc&limit=1`);
-        if(!locs||!locs.length)continue;
+        if(!locs||!locs.length) continue;
         const loc=locs[0];
         const ageMin=Math.round((Date.now()-new Date(loc.recorded_at))/60000);
-        const initial=m.name.charAt(0);
-        const marker=L.marker([loc.lat,loc.lon],{icon:makeDriverIcon(initial)})
+        const staleText=ageMin<2?'Just now':ageMin<60?`${ageMin}min ago`:`${Math.floor(ageMin/60)}h ago`;
+        const marker=L.marker([loc.lat,loc.lon],{icon:makeDriverIcon(m.name),zIndexOffset:500})
           .addTo(dispMap)
-          .bindPopup(`<strong>${m.name}</strong><br>Updated ${ageMin}min ago`);
+          .bindPopup(`<strong style="font-family:'Space Mono',monospace">${m.name}</strong><br><span style="color:#8899AA;font-size:11px">${staleText}</span>`);
         mapDriverMarkers.push(marker);
         allBounds.push([loc.lat,loc.lon]);
       }
     }catch{}
   }
 
-  // ── Fit map to all pins ───────────────────────────────────────────────────
+  // ── Fit bounds ────────────────────────────────────────────────────────────
   if(allBounds.length===1){
-    dispMap.setView(allBounds[0],15);
+    dispMap.setView(allBounds[0],16);
   } else if(allBounds.length>1){
-    dispMap.fitBounds(allBounds,{padding:[30,30]});
+    dispMap.fitBounds(allBounds,{padding:[44,44]});
   }
 
   // Update timestamp
   const now=new Date();
   const label=document.getElementById('mapLastUpdate');
-  if(label) label.textContent=`Updated ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+  if(label){
+    const hh=now.getHours().toString().padStart(2,'0');
+    const mm=now.getMinutes().toString().padStart(2,'0');
+    label.textContent=`${hh}:${mm}`;
+  }
 }
 
 /* INIT */
