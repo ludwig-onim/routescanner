@@ -1364,9 +1364,10 @@ async function initOrRefreshMap(){
       preferCanvas:true
     });
 
-    // Stadia Alidade Smooth Dark — black bg, white minimal streets, no clutter
-    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{
-      attribution:'© <a href="https://stadiamaps.com/">Stadia Maps</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://openstreetmap.org">OSM</a>',
+    // CartoDB Dark Matter — free, no API key, black bg, minimal white streets
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
+      subdomains:'abcd',
       maxZoom:20,
       minZoom:3
     }).addTo(dispMap);
