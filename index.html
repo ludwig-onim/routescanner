@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Onim Routes</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
 <style>
@@ -168,6 +170,20 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
 @keyframes dpulse{0%,100%{box-shadow:0 0 0 3px rgba(59,130,246,.3)}50%{box-shadow:0 0 0 6px rgba(59,130,246,.1)}}
 .driver-card-footer{padding:8px 14px;border-top:1.5px solid var(--border);display:flex;gap:8px;background:rgba(0,0,0,.1)}
 .no-drivers{text-align:center;padding:40px 20px;font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+/* MAP PANE */
+#pane-map{flex:1;display:none;flex-direction:column;min-height:0}
+#pane-map.active{display:flex}
+#dispMap{flex:1;min-height:0;z-index:1}
+.map-legend{padding:8px 14px;background:var(--surface);border-top:1.5px solid var(--border);display:flex;gap:14px;flex-wrap:wrap;flex-shrink:0}
+.map-legend-item{display:flex;align-items:center;gap:6px;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.map-refresh-row{padding:8px 14px;background:var(--surface);border-top:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.map-refresh-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+/* Override Leaflet popup to match theme */
+.leaflet-popup-content-wrapper{background:var(--card)!important;border:1.5px solid var(--border)!important;border-radius:8px!important;color:var(--text)!important;box-shadow:0 4px 20px rgba(0,0,0,.4)!important}
+.leaflet-popup-tip{background:var(--card)!important}
+.leaflet-popup-content{font-family:'DM Sans',sans-serif!important;font-size:13px!important;color:var(--text)!important;margin:10px 14px!important}
+.leaflet-popup-close-button{color:var(--muted)!important}
 
 /* DRIVER SCREEN */
 #screen-driver{padding-top:0}
@@ -279,6 +295,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
 <div class="screen" id="screen-dispatcher">
   <div class="disp-tabs">
     <button class="disp-tab active" id="tab-scanner" onclick="switchDispTab('scanner')">Scanner</button>
+    <button class="disp-tab" id="tab-map" onclick="switchDispTab('map')">Map</button>
     <button class="disp-tab" id="tab-drivers" onclick="switchDispTab('drivers')">Drivers</button>
   </div>
 
@@ -327,6 +344,19 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
     </div>
   </div>
 
+  <!-- Map pane -->
+  <div id="pane-map">
+    <div id="dispMap"></div>
+    <div class="map-refresh-row">
+      <span class="map-refresh-label" id="mapLastUpdate">Not loaded yet</span>
+      <button class="btn btn-ghost btn-sm" onclick="refreshMap()">↺ Refresh</button>
+    </div>
+    <div class="map-legend">
+      <div class="map-legend-item"><div class="legend-dot" style="background:#3B82F6"></div>Stop</div>
+      <div class="map-legend-item"><div class="legend-dot" style="background:#10B981"></div>Driver</div>
+    </div>
+  </div>
+
   <!-- Drivers pane -->
   <div class="disp-pane" id="pane-drivers">
     <div class="drivers-pane-inner" id="driversPane">
@@ -337,6 +367,9 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
   <nav class="nav-bar">
     <button class="nav-item active" id="disp-nav-scanner" onclick="switchDispTab('scanner')">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zM18 14h3v2h-3zM14 18h2v3h-2zM18 18h3v3h-3z"/></svg>Scanner
+    </button>
+    <button class="nav-item" id="disp-nav-map" onclick="switchDispTab('map')">
+      <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Map
     </button>
     <button class="nav-item" id="disp-nav-drivers" onclick="switchDispTab('drivers')">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Drivers
@@ -599,7 +632,16 @@ function switchDispTab(tab){
     document.getElementById('pane-'+t).classList.toggle('active',t===tab);
     document.getElementById('disp-nav-'+t).classList.toggle('active',t===tab);
   });
-  if(tab==='drivers')loadDriversPane();
+  // Map tab handled separately (not a .disp-pane)
+  const mapTab=document.getElementById('tab-map');
+  const mapPane=document.getElementById('pane-map');
+  const mapNav=document.getElementById('disp-nav-map');
+  if(mapTab) mapTab.classList.toggle('active',tab==='map');
+  if(mapPane) mapPane.classList.toggle('active',tab==='map');
+  if(mapNav) mapNav.classList.toggle('active',tab==='map');
+
+  if(tab==='drivers') loadDriversPane();
+  if(tab==='map') initOrRefreshMap();
 }
 function initDispatcher(){updateUI();loadDriversPane();startDriverPoller();}
 
@@ -1193,6 +1235,134 @@ async function sendLocation(){
 
 /* MODALS */
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+/* ══════════════════════════════════════
+   DISPATCHER MAP (Leaflet + OpenStreetMap)
+   - Stop pins: numbered, from current dispatcher stop list
+   - Driver pins: latest GPS from Supabase locations table
+   - Auto-fits bounds to all pins
+   - Refreshes every 30s while map tab is open
+══════════════════════════════════════ */
+let dispMap=null;
+let mapStopMarkers=[];
+let mapDriverMarkers=[];
+let mapRefreshTimer=null;
+
+function makeNumberedIcon(num,color){
+  // SVG pin with number inside — matches app color scheme
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+    <path d="M16 0C9.37 0 4 5.37 4 12c0 9 12 28 12 28S28 21 28 12C28 5.37 22.63 0 16 0z" fill="${color}" stroke="rgba(0,0,0,.3)" stroke-width="1"/>
+    <circle cx="16" cy="12" r="9" fill="rgba(0,0,0,.2)"/>
+    <text x="16" y="17" text-anchor="middle" font-family="Space Mono,monospace" font-size="${num>9?'9':'11'}" font-weight="700" fill="#fff">${num}</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    iconSize:[32,40],iconAnchor:[16,40],popupAnchor:[0,-40],
+    className:''
+  });
+}
+
+function makeDriverIcon(initial){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+    <circle cx="18" cy="18" r="16" fill="#10B981" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>
+    <circle cx="18" cy="18" r="10" fill="rgba(0,0,0,.15)"/>
+    <text x="18" y="23" text-anchor="middle" font-family="Space Mono,monospace" font-size="12" font-weight="700" fill="#fff">${initial.toUpperCase()}</text>
+  </svg>`;
+  return L.divIcon({html:svg,iconSize:[36,36],iconAnchor:[18,18],popupAnchor:[0,-20],className:''});
+}
+
+async function initOrRefreshMap(){
+  // Init Leaflet map once
+  if(!dispMap){
+    dispMap=L.map('dispMap',{zoomControl:true,attributionControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom:19
+    }).addTo(dispMap);
+    // Default view — Berlin
+    dispMap.setView([52.4965,13.4145],13);
+  }
+  // Force Leaflet to recalculate size (tab was hidden before)
+  setTimeout(()=>dispMap.invalidateSize(),50);
+
+  await refreshMap();
+
+  // Poll every 30s while map is open
+  clearInterval(mapRefreshTimer);
+  mapRefreshTimer=setInterval(refreshMap,30000);
+}
+
+async function refreshMap(){
+  if(!dispMap)return;
+  const allBounds=[];
+
+  // ── Clear existing markers ────────────────────────────────────────────────
+  mapStopMarkers.forEach(m=>m.remove());
+  mapDriverMarkers.forEach(m=>m.remove());
+  mapStopMarkers=[];mapDriverMarkers=[];
+
+  // ── Stop pins: geocode current dispatcher stop list ───────────────────────
+  for(let i=0;i<stops.length;i++){
+    try{
+      const c=await geocode(stops[i].text);
+      if(!c)continue;
+      const isDone=false; // dispatcher view — all pending
+      const marker=L.marker([c.lat,c.lon],{icon:makeNumberedIcon(i+1,'#3B82F6')})
+        .addTo(dispMap)
+        .bindPopup(`<strong>#${i+1}</strong><br>${stops[i].text}`);
+      mapStopMarkers.push(marker);
+      allBounds.push([c.lat,c.lon]);
+      await new Promise(r=>setTimeout(r,150)); // Nominatim rate limit
+    }catch{}
+  }
+
+  // ── Driver pins: latest location per driver from Supabase ─────────────────
+  if(session&&session.teamId){
+    try{
+      const members=await db('GET','members',null,`?team_id=eq.${session.teamId}&role=eq.driver`);
+      for(const m of members||[]){
+        // Match member name to driver record to get driver_id
+        const allDrivers=await db('GET','drivers',null,`?team_id=eq.${session.teamId}`);
+        const drv=(allDrivers||[]).find(d=>d.name===m.name);
+        if(!drv)continue;
+        const locs=await db('GET','locations',null,`?driver_id=eq.${drv.id}&order=recorded_at.desc&limit=1`);
+        if(!locs||!locs.length)continue;
+        const loc=locs[0];
+        const ageMin=Math.round((Date.now()-new Date(loc.recorded_at))/60000);
+        const initial=m.name.charAt(0);
+        const marker=L.marker([loc.lat,loc.lon],{icon:makeDriverIcon(initial)})
+          .addTo(dispMap)
+          .bindPopup(`<strong>${m.name}</strong><br>Updated ${ageMin}min ago`);
+        mapDriverMarkers.push(marker);
+        allBounds.push([loc.lat,loc.lon]);
+      }
+    }catch{}
+  }
+
+  // ── Fit map to all pins ───────────────────────────────────────────────────
+  if(allBounds.length===1){
+    dispMap.setView(allBounds[0],15);
+  } else if(allBounds.length>1){
+    dispMap.fitBounds(allBounds,{padding:[30,30]});
+  }
+
+  // Update timestamp
+  const now=new Date();
+  const label=document.getElementById('mapLastUpdate');
+  if(label) label.textContent=`Updated ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+}
+
+// When stops change, re-pin them if map tab is open
+const origUpdateUI=updateUI;
+function updateUI(){
+  origUpdateUI();
+  if(document.getElementById('pane-map')&&document.getElementById('pane-map').classList.contains('active')){
+    refreshMap();
+  }
+}
+
+// Stop map polling when leaving the map tab
+const origSwitchDispTab=switchDispTab;
 
 /* INIT */
 loadPersistedStops(); // restore stops from last session if any
