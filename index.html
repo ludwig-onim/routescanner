@@ -693,6 +693,9 @@ function updateUI(){
   if(el('routeBtn'))el('routeBtn').disabled=n===0;
   if(el('saveRouteRow'))el('saveRouteRow').classList.toggle('show',n>0);
   renderStops();
+  // If map tab is open, refresh pins to reflect new stop order/count
+  const mapPane=document.getElementById('pane-map');
+  if(mapPane&&mapPane.classList.contains('active')) refreshMap();
 }
 
 function renderStops(){
@@ -1351,18 +1354,6 @@ async function refreshMap(){
   const label=document.getElementById('mapLastUpdate');
   if(label) label.textContent=`Updated ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 }
-
-// When stops change, re-pin them if map tab is open
-const origUpdateUI=updateUI;
-function updateUI(){
-  origUpdateUI();
-  if(document.getElementById('pane-map')&&document.getElementById('pane-map').classList.contains('active')){
-    refreshMap();
-  }
-}
-
-// Stop map polling when leaving the map tab
-const origSwitchDispTab=switchDispTab;
 
 /* INIT */
 loadPersistedStops(); // restore stops from last session if any
