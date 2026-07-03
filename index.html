@@ -72,13 +72,36 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
 
 /* DISPATCHER */
 #screen-dispatcher{padding-top:0}
-.disp-tabs{display:flex;border-bottom:1.5px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:50}
-.disp-tab{flex:1;padding:14px 0;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:none;background:none;cursor:pointer;transition:color .15s;border-bottom:2px solid transparent}
-.disp-tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
 .disp-pane{display:none;flex-direction:column;flex:1}
 .disp-pane.active{display:flex}
-/* Scanner pane needs bottom padding so content clears sticky route-bar + nav */
-#pane-scanner{padding-bottom:180px}
+#pane-scan{padding-bottom:100px}
+#pane-routes{padding-bottom:180px}
+
+/* Scan-tab specific: bigger centered camera view since nothing else competes for space */
+#pane-scan .scanner-wrap{margin-top:24px;aspect-ratio:1/1.1}
+#pane-scan .idle-state{margin-top:24px;padding:48px 20px}
+
+/* Fly-to-routes animation */
+@keyframes flyToRoutes{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  70%{opacity:1}
+  100%{transform:translate(var(--fly-x,120px),var(--fly-y,-300px)) scale(.3);opacity:0}
+}
+.fly-chip{
+  position:fixed;z-index:400;pointer-events:none;
+  background:var(--accent);color:#fff;
+  font-family:'Space Mono',monospace;font-size:10px;font-weight:700;
+  padding:6px 12px;border-radius:20px;
+  box-shadow:0 4px 16px rgba(59,130,246,.5);
+  animation:flyToRoutes .7s cubic-bezier(.3,0,.7,1) forwards;
+}
+@keyframes tabPulse{
+  0%,100%{transform:scale(1)}
+  30%{transform:scale(1.25)}
+  55%{transform:scale(.95)}
+}
+.nav-item.receiving svg{animation:tabPulse .5s ease}
+.nav-item.receiving{color:var(--accent)!important}
 
 /* SCANNER */
 .scanner-wrap{position:relative;margin:16px 20px 0;border-radius:var(--radius);overflow:hidden;background:#000;aspect-ratio:1/1;border:1.5px solid var(--border);display:none}
@@ -333,14 +356,8 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
 
 <!-- DISPATCHER -->
 <div class="screen" id="screen-dispatcher">
-  <div class="disp-tabs">
-    <button class="disp-tab active" id="tab-scanner" onclick="switchDispTab('scanner')">Scanner</button>
-    <button class="disp-tab" id="tab-map" onclick="switchDispTab('map')">Map</button>
-    <button class="disp-tab" id="tab-drivers" onclick="switchDispTab('drivers')">Drivers</button>
-  </div>
-
-  <!-- Scanner pane -->
-  <div class="disp-pane active" id="pane-scanner">
+  <!-- SCAN pane — camera only, nothing else competes for attention -->
+  <div class="disp-pane active" id="pane-scan">
     <div class="scanner-wrap" id="scannerWrap">
       <div id="qr-reader"></div>
       <div class="scan-overlay"><div class="scan-frame"><div class="c-br"></div><div class="c-bl"></div><div class="scan-line"></div></div></div>
@@ -348,15 +365,23 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
       <div class="flash" id="flash"></div>
       <div class="ocr-overlay" id="ocrOverlay"><div class="ocr-spinner"></div><div class="ocr-label" id="ocrLabel">Reading…</div></div>
     </div>
-    <div class="idle-state" id="idleState"><div class="idle-icon">📷</div><div class="idle-label">Tap "Scan QR" to start<br>or enter addresses manually</div></div>
+    <div class="idle-state" id="idleState"><div class="idle-icon">📷</div><div class="idle-label">Tap "Scan QR" to start<br>Scanned stops appear in Routes →</div></div>
     <div class="action-row">
       <button class="btn btn-ghost" id="scanBtn" onclick="toggleScanner()">⬡ Scan QR</button>
-      <button class="btn btn-ghost" onclick="toggleManual()">＋ Manual</button>
       <button class="btn btn-ghost" onclick="triggerOCR()">⊡ Scan Text</button>
     </div>
     <div class="torch-wrap" id="torchWrap"><button class="btn btn-torch btn-full" id="torchBtn" onclick="toggleTorch()">☀ Flashlight OFF</button></div>
-    <div class="manual-wrap" id="manualWrap">
-      <input class="input" id="addrInput" type="text" placeholder="Address or place name…" autocomplete="off" style="height:44px">
+    <div style="padding:14px 20px 0" id="scanCountRow">
+      <div style="text-align:center;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">
+        <span id="scanCountDisplay" style="color:var(--accent2);font-weight:700">0</span> stops sent to Routes
+      </div>
+    </div>
+  </div>
+
+  <!-- ROUTES pane — everything for building/editing/dispatching a route -->
+  <div class="disp-pane" id="pane-routes">
+    <div class="manual-wrap open" style="padding:16px 20px 0">
+      <input class="input" id="addrInput" type="text" placeholder="Add address manually…" autocomplete="off" style="height:44px">
       <button class="btn btn-primary" onclick="addManual()">Add</button>
     </div>
     <div class="optimize-row" id="optimizeRow"><button class="btn btn-optimize btn-full" id="optimizeBtn" onclick="optimizeRoute()">⟳ Optimize Order</button></div>
@@ -365,7 +390,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
       <button style="font-family:'Space Mono',monospace;font-size:10px;color:var(--danger);background:none;border:none;cursor:pointer;letter-spacing:.08em;text-transform:uppercase" onclick="clearAll()">Clear all</button>
     </div>
     <div class="stops-list" id="stopsList"></div>
-    <div class="empty-state" id="emptyState">No stops yet</div>
+    <div class="empty-state" id="emptyState">No stops yet — scan or add manually</div>
     <div class="hint" id="reorderHint">▲▼ reorder · tap address to edit · × remove</div>
     <div class="save-route-row" id="saveRouteRow">
       <button class="btn btn-ghost btn-sm" onclick="saveRouteToCloud()" style="flex:1">💾 Save Route</button>
@@ -409,8 +434,11 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
   </div>
 
   <nav class="nav-bar">
-    <button class="nav-item active" id="disp-nav-scanner" onclick="switchDispTab('scanner')">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zM18 14h3v2h-3zM14 18h2v3h-2zM18 18h3v3h-3z"/></svg>Scanner
+    <button class="nav-item active" id="disp-nav-scan" onclick="switchDispTab('scan')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zM18 14h3v2h-3zM14 18h2v3h-2zM18 18h3v3h-3z"/></svg>Scan
+    </button>
+    <button class="nav-item" id="disp-nav-routes" onclick="switchDispTab('routes')">
+      <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/><path d="M15 3v18"/></svg>Routes
     </button>
     <button class="nav-item" id="disp-nav-map" onclick="switchDispTab('map')">
       <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Map
@@ -419,7 +447,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-seri
       <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Drivers
     </button>
     <button class="nav-item" onclick="signOut()">
-      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Exit
     </button>
   </nav>
 </div>
@@ -671,18 +699,21 @@ function showToast(msg,type=''){
 
 /* DISPATCHER TABS */
 function switchDispTab(tab){
-  ['scanner','drivers'].forEach(t=>{
-    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
-    document.getElementById('pane-'+t).classList.toggle('active',t===tab);
-    document.getElementById('disp-nav-'+t).classList.toggle('active',t===tab);
+  // Standard .disp-pane tabs: scan, routes, drivers
+  ['scan','routes','drivers'].forEach(t=>{
+    const pane=document.getElementById('pane-'+t);
+    if(pane) pane.classList.toggle('active',t===tab);
+    const nav=document.getElementById('disp-nav-'+t);
+    if(nav) nav.classList.toggle('active',t===tab);
   });
-  // Map tab handled separately (not a .disp-pane)
-  const mapTab=document.getElementById('tab-map');
+  // Map pane handled separately (not a .disp-pane, has its own layout)
   const mapPane=document.getElementById('pane-map');
   const mapNav=document.getElementById('disp-nav-map');
-  if(mapTab) mapTab.classList.toggle('active',tab==='map');
   if(mapPane) mapPane.classList.toggle('active',tab==='map');
   if(mapNav) mapNav.classList.toggle('active',tab==='map');
+
+  // Stop camera if navigating away from scan tab
+  if(tab!=='scan'&&scanning) stopScanner();
 
   if(tab==='drivers') loadDriversPane();
   if(tab==='map') initOrRefreshMap();
@@ -736,6 +767,7 @@ function updateUI(){
   if(el('shareBtn'))el('shareBtn').disabled=n===0;
   if(el('routeBtn'))el('routeBtn').disabled=n===0;
   if(el('saveRouteRow'))el('saveRouteRow').classList.toggle('show',n>0);
+  if(el('scanCountDisplay'))el('scanCountDisplay').textContent=n;
   renderStops();
   // If map tab is open, refresh pins to reflect new stop order/count
   const mapPane=document.getElementById('pane-map');
@@ -809,6 +841,41 @@ function showScanSuccess(){
   const f=document.getElementById('flash'),s=document.getElementById('scanStatus');
   f.style.opacity='.55';s.style.color='#10B981';s.style.fontSize='15px';s.textContent='Added ✓';
   setTimeout(()=>{f.style.opacity='0';s.style.color='';s.style.fontSize='';s.textContent='Scanning…';},1500);
+
+  // Update running counter on scan tab
+  const counter=document.getElementById('scanCountDisplay');
+  if(counter) counter.textContent=stops.length;
+
+  // Fly a small chip from the scan frame toward the Routes tab icon
+  flyChipToRoutes();
+}
+
+function flyChipToRoutes(){
+  const scannerWrap=document.getElementById('scannerWrap');
+  const routesNav=document.getElementById('disp-nav-routes');
+  if(!scannerWrap||!routesNav) return;
+
+  const startRect=scannerWrap.getBoundingClientRect();
+  const endRect=routesNav.getBoundingClientRect();
+
+  const chip=document.createElement('div');
+  chip.className='fly-chip';
+  chip.textContent='+1 stop';
+  chip.style.left=(startRect.left+startRect.width/2-30)+'px';
+  chip.style.top=(startRect.top+startRect.height/2-14)+'px';
+
+  const dx=(endRect.left+endRect.width/2)-(startRect.left+startRect.width/2);
+  const dy=(endRect.top+endRect.height/2)-(startRect.top+startRect.height/2);
+  chip.style.setProperty('--fly-x',dx+'px');
+  chip.style.setProperty('--fly-y',dy+'px');
+
+  document.body.appendChild(chip);
+  chip.addEventListener('animationend',()=>{
+    chip.remove();
+    // Pulse the Routes tab icon on arrival
+    routesNav.classList.add('receiving');
+    setTimeout(()=>routesNav.classList.remove('receiving'),500);
+  });
 }
 async function toggleTorch(){
   if(!torchTrack){showToast('Torch not available','error');return;}
@@ -829,7 +896,7 @@ async function triggerOCR(){
     const result=await Tesseract.recognize(c.toDataURL('image/png'),'deu+eng',{logger:m=>{if(m.status==='recognizing text')label.textContent=`Reading… ${Math.round(m.progress*100)}%`;}});
     const addr=extractAddressFromOCR(result.data.text);
     overlay.classList.remove('show');
-    if(addr){if(addStop(addr,'OCR'))showToast('Address found ✓','success');}
+    if(addr){if(addStop(addr,'OCR')){showToast('Address found ✓','success');showScanSuccess();}}
     else showToast('No address found — try better lighting','error');
   }catch(e){overlay.classList.remove('show');showToast('OCR failed','error');}
 }
@@ -842,7 +909,7 @@ function extractAddressFromOCR(text){
 }
 
 /* MANUAL */
-function toggleManual(){const w=document.getElementById('manualWrap');const o=w.classList.toggle('open');if(o)document.getElementById('addrInput').focus();}
+/* Manual add now lives directly in the Routes tab — no toggle needed */
 function addManual(){const inp=document.getElementById('addrInput');const v=inp.value.trim();if(!v){showToast('Enter an address','error');return;}if(addStop(v,'TEXT')){inp.value='';showToast('Stop added ✓','success');}}
 document.getElementById('addrInput').addEventListener('keydown',e=>{if(e.key==='Enter')addManual();});
 
@@ -1126,7 +1193,7 @@ function buildDriverCard(member,route,stopList){
   return card;
 }
 async function openAssignModalForDriver(member){
-  if(!stops.length){showToast('Scan stops first, then assign','info');switchDispTab('scanner');return;}
+  if(!stops.length){showToast('Scan stops first, then assign','info');switchDispTab('scan');return;}
   document.getElementById('assignDriverSelect').innerHTML=`<option value="${member.id}" selected>${escHtml(member.name)}</option>`;
   document.getElementById('assignPreviewInfo').textContent=`${stops.length} stop${stops.length>1?'s':''}`;
   document.getElementById('assignError').textContent='';
